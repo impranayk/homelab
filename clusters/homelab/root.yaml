@@ -10,7 +10,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: REPLACE-WITH-YOUR-REPO      # keep in step with components.yaml repo.url
+    repoURL: https://github.com/impranayk/homelab.git      # keep in step with components.yaml repo.url
     targetRevision: main
     path: clusters/homelab/apps
     helm:

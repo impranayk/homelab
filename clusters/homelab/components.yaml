@@ -1,7 +1,7 @@
 # Every layer of the lab. One entry = one Argo CD Application (plus "<name>-extras" if the
 # folder has an extras/ directory of plain manifests). Order inside a phase is by wave.
 repo:
-  url: REPLACE-WITH-YOUR-REPO     # e.g. https://github.com/impranayk/homelab.git
+  url: https://github.com/impranayk/homelab.git     # e.g. https://github.com/impranayk/homelab.git
   revision: main
 
 components:
