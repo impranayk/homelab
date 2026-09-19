@@ -41,7 +41,7 @@ bootstrap/30-trust-ca.sh     # import the lab CA into Windows so every URL gets 
 Build and push the first app image to the k3d registry:
 
 ```bash
-docker build -t localhost:5111/drjhagpt-pro:dev /path/to/drjhagpt-enterprise
+cp apps/drjhagpt-pro/Dockerfile ~/drjhagpt-ent/ && cd ~/drjhagpt-ent && docker build -t localhost:5111/drjhagpt-pro:dev .
 docker push localhost:5111/drjhagpt-pro:dev
 ```
 

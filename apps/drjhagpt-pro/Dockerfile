@@ -9,6 +9,6 @@ COPY --chown=app:app . .
 USER app
 EXPOSE 8501
 # ARG so the same Dockerfile serves every Streamlit app in the family
-ARG APP_FILE=app.py
+ARG APP_FILE=streamlit_app.py
 ENV APP_FILE=${APP_FILE}
 CMD ["sh", "-c", "streamlit run ${APP_FILE} --server.port=8501 --server.address=0.0.0.0"]
