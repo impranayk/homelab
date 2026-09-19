@@ -6,4 +6,4 @@ localhostForwarding=true
 
 [experimental]
 autoMemoryReclaim=gradual
-sparseVhd=true
+# sparseVhd is disabled by WSL 2.7+ (corruption risk); do not force it with --allow-unsafe
