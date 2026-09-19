@@ -27,8 +27,9 @@ secrets/                  gitignored <namespace>.<secret>.env files (21-gen-secr
 ## Phase 1: cluster and first app
 
 ```bash
-# inside WSL2 Ubuntu, Docker running
+# inside WSL2 Ubuntu
 cp bootstrap/wslconfig.example /mnt/c/Users/$USER_WIN/.wslconfig   # once, then wsl --shutdown
+bootstrap/00-docker.sh       # Docker Engine inside Ubuntu (no Docker Desktop needed); reopen the shell after
 bootstrap/00-tools.sh        # k3d, kubectl, helm, k9s, argocd CLI
 bootstrap/01-cluster.sh      # 3-node k3d cluster + local registry
 bootstrap/10-argocd.sh       # Argo CD + the root app (edit clusters/homelab/components.yaml repo.url first)
