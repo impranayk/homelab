@@ -1,0 +1,54 @@
+# The lab's three house rules. Start in Audit, flip to Enforce once the apps pass.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-latest-tag
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+    - name: require-image-tag
+      match: { any: [{ resources: { kinds: [Pod] } }] }
+      validate:
+        message: "Images must carry a tag other than 'latest'."
+        pattern:
+          spec:
+            containers:
+              - image: "!*:latest"
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-resource-limits
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+    - name: memory-limits
+      match: { any: [{ resources: { kinds: [Pod], namespaces: [apps, ai] } }] }
+      validate:
+        message: "Every container in apps/ai needs a memory limit (this is a 20 GB laptop)."
+        pattern:
+          spec:
+            containers:
+              - resources:
+                  limits:
+                    memory: "?*"
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-privileged
+spec:
+  validationFailureAction: Enforce
+  background: true
+  rules:
+    - name: no-privileged
+      match: { any: [{ resources: { kinds: [Pod], namespaces: [apps, ai] } }] }
+      validate:
+        message: "Privileged containers are not allowed in apps/ai."
+        pattern:
+          spec:
+            =(securityContext): { =(privileged): "false" }
+            containers:
+              - =(securityContext): { =(privileged): "false" }

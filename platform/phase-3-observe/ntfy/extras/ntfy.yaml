@@ -1,0 +1,95 @@
+# ntfy: push notifications to the phone (install the ntfy app, subscribe to topic "homelab").
+# Plus a tiny Alertmanager -> ntfy bridge so Alertmanager webhooks become notifications.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ntfy
+  namespace: monitoring
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: ntfy } }
+  template:
+    metadata: { labels: { app: ntfy } }
+    spec:
+      containers:
+        - name: ntfy
+          image: binwiederhier/ntfy:v2.11.0
+          args: [serve, --base-url, https://ntfy.127.0.0.1.sslip.io, --behind-proxy]
+          ports: [{ containerPort: 80 }]
+          resources:
+            requests: { cpu: 10m, memory: 32Mi }
+            limits: { memory: 128Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ntfy
+  namespace: monitoring
+spec:
+  selector: { app: ntfy }
+  ports: [{ port: 80, targetPort: 80 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ntfy
+  namespace: monitoring
+  annotations:
+    cert-manager.io/cluster-issuer: homelab-ca
+spec:
+  ingressClassName: nginx
+  tls: [{ hosts: [ntfy.127.0.0.1.sslip.io], secretName: ntfy-tls }]
+  rules:
+    - host: ntfy.127.0.0.1.sslip.io
+      http:
+        paths: [{ path: /, pathType: Prefix, backend: { service: { name: ntfy, port: { number: 80 } } } }]
+---
+# Alertmanager webhook -> ntfy topic. Alertmanager posts to http://ntfy-alertmanager.monitoring.svc:8080/hook
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ntfy-alertmanager
+  namespace: monitoring
+data:
+  config.yaml: |
+    http:
+      addr: ":8080"
+    ntfy:
+      baseurl: http://ntfy.monitoring.svc
+      topic: homelab
+    labels:
+      order: ["severity"]
+      severity:
+        critical: { priority: 5, tags: ["rotating_light"] }
+        warning:  { priority: 4, tags: ["warning"] }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ntfy-alertmanager
+  namespace: monitoring
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: ntfy-alertmanager } }
+  template:
+    metadata: { labels: { app: ntfy-alertmanager } }
+    spec:
+      containers:
+        - name: bridge
+          image: xenrox/ntfy-alertmanager:0.5.0
+          args: [--config, /etc/ntfy-alertmanager/config.yaml]
+          ports: [{ containerPort: 8080 }]
+          volumeMounts: [{ name: cfg, mountPath: /etc/ntfy-alertmanager }]
+          resources: { requests: { cpu: 5m, memory: 16Mi }, limits: { memory: 64Mi } }
+      volumes:
+        - name: cfg
+          configMap: { name: ntfy-alertmanager }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ntfy-alertmanager
+  namespace: monitoring
+spec:
+  selector: { app: ntfy-alertmanager }
+  ports: [{ port: 8080, targetPort: 8080 }]

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "argocd": {
+    "managerFilePatterns": ["/^clusters/homelab/components\\.yaml$/"]
+  },
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "chart pins in components.yaml",
+      "managerFilePatterns": ["/^clusters/homelab/components\\.yaml$/"],
+      "matchStrings": [
+        "repoURL:\\s*(?<registryUrl>\\S+)\\s*\\n\\s*name:\\s*(?<depName>\\S+)\\s*\\n\\s*version:\\s*\"(?<currentValue>[^\"]+)\""
+      ],
+      "datasourceTemplate": "helm"
+    }
+  ],
+  "packageRules": [
+    { "matchUpdateTypes": ["patch"], "automerge": false, "groupName": "chart patches" }
+  ]
+}

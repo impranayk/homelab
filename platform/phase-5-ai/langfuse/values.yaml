@@ -1,0 +1,44 @@
+# Langfuse v3 needs Postgres + ClickHouse + Redis + S3. On the laptop the chart's bundled
+# ClickHouse/Redis are used; Postgres and S3 come from this namespace.
+langfuse:
+  nextauth:
+    url: https://langfuse.127.0.0.1.sslip.io
+    secret: { value: change-me-nextauth }
+  salt: { value: change-me-salt }
+  encryptionKey: { value: "0000000000000000000000000000000000000000000000000000000000000000" }
+  ingress:
+    enabled: true
+    className: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: homelab-ca
+    hosts:
+      - host: langfuse.127.0.0.1.sslip.io
+        paths: [{ path: /, pathType: Prefix }]
+    tls: [{ secretName: langfuse-tls, hosts: [langfuse.127.0.0.1.sslip.io] }]
+  web:
+    resources: { requests: { cpu: 50m, memory: 256Mi }, limits: { memory: 768Mi } }
+  worker:
+    resources: { requests: { cpu: 50m, memory: 256Mi }, limits: { memory: 768Mi } }
+postgresql:
+  deploy: false
+  host: postgres-rw.ai.svc
+  auth:
+    username: app
+    database: langfuse
+    existingSecret: postgres-app
+    secretKeys: { userPasswordKey: password }
+clickhouse:
+  deploy: true
+  replicaCount: 1
+  auth: { password: change-me-clickhouse }
+  resources: { requests: { cpu: 100m, memory: 512Mi }, limits: { memory: 1Gi } }
+redis:
+  deploy: true
+  auth: { password: change-me-redis }
+s3:
+  deploy: false
+  endpoint: http://minio.ai.svc:9000
+  forcePathStyle: true
+  bucket: langfuse
+  accessKeyId: { value: homelab }
+  secretAccessKey: { value: change-me-minio }

@@ -1,0 +1,21 @@
+mode: standalone
+replicas: 1
+rootUser: homelab
+rootPassword: change-me-minio
+persistence:
+  size: 20Gi
+resources:
+  requests: { cpu: 50m, memory: 256Mi }
+  limits: { memory: 512Mi }
+buckets:
+  - { name: pdfs, policy: none, purge: false }
+  - { name: velero, policy: none, purge: false }
+  - { name: longhorn, policy: none, purge: false }
+  - { name: langfuse, policy: none, purge: false }
+consoleIngress:
+  enabled: true
+  ingressClassName: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: homelab-ca
+  hosts: [minio.127.0.0.1.sslip.io]
+  tls: [{ secretName: minio-console-tls, hosts: [minio.127.0.0.1.sslip.io] }]

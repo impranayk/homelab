@@ -1,0 +1,20 @@
+# Replicated block storage across the three k3d nodes. Needs open-iscsi in the node image;
+# k3d's k3s image has it. Keep replicas at 2 on a laptop.
+defaultSettings:
+  defaultReplicaCount: 2
+  defaultDataPath: /var/lib/longhorn
+  backupTarget: s3://longhorn@us-east-1/
+  backupTargetCredentialSecret: minio-credentials
+persistence:
+  defaultClass: false             # keep local-path default; opt in per PVC
+  defaultClassReplicaCount: 2
+ingress:
+  enabled: true
+  ingressClassName: nginx
+  host: longhorn.127.0.0.1.sslip.io
+  tls: true
+  tlsSecret: longhorn-tls
+  annotations:
+    cert-manager.io/cluster-issuer: homelab-ca
+longhornManager:
+  resources: { requests: { cpu: 50m, memory: 128Mi } }

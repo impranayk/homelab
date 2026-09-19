@@ -1,0 +1,92 @@
+{{- $root := . }}
+{{- range .Values.components }}
+{{- $phase := index $root.Values.phases (printf "%d" (int .phase)) | default (dict "enabled" false) }}
+{{- $en := true }}
+{{- if hasKey . "enabled" }}{{ $en = .enabled }}{{ end }}
+{{- $on := and $phase.enabled $en }}
+{{- if $on }}
+{{- $wave := int (default 0 .wave) }}
+{{- if or .chart .localChart }}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: {{ .name }}
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: {{ $wave | quote }}
+  labels:
+    homelab/phase: {{ .phase | quote }}
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {{ .namespace }}
+  sources:
+  {{- if .chart }}
+    - repoURL: {{ .chart.repoURL }}
+      chart: {{ .chart.name }}
+      targetRevision: {{ .chart.version | quote }}
+      helm:
+        releaseName: {{ .name }}
+        valueFiles:
+          - $values/{{ .path }}/values.yaml
+  {{- else }}
+    - repoURL: {{ $root.Values.repo.url }}
+      targetRevision: {{ $root.Values.repo.revision }}
+      path: {{ .localChart }}
+      helm:
+        releaseName: {{ .name }}
+        valueFiles:
+          - $values/{{ .path }}/values.yaml
+  {{- end }}
+    - repoURL: {{ $root.Values.repo.url }}
+      targetRevision: {{ $root.Values.repo.revision }}
+      ref: values
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff: { duration: 30s, factor: 2, maxDuration: 5m }
+{{- end }}
+{{- if .extras }}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: {{ .name }}-extras
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: {{ add $wave 1 | quote }}
+  labels:
+    homelab/phase: {{ .phase | quote }}
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {{ .namespace }}
+  source:
+    repoURL: {{ $root.Values.repo.url }}
+    targetRevision: {{ $root.Values.repo.revision }}
+    path: {{ .path }}/extras
+    directory:
+      recurse: true
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+{{- end }}
+{{- end }}
+{{- end }}

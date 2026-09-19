@@ -1,0 +1,10 @@
+admissionController:
+  replicas: 1
+  container:
+    resources: { requests: { cpu: 50m, memory: 128Mi }, limits: { memory: 384Mi } }
+backgroundController:
+  resources: { requests: { cpu: 20m, memory: 64Mi } }
+cleanupController:
+  resources: { requests: { cpu: 20m, memory: 64Mi } }
+reportsController:
+  resources: { requests: { cpu: 20m, memory: 64Mi } }

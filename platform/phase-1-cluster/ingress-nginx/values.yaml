@@ -1,0 +1,17 @@
+# ingress-nginx sized for the laptop. k3d's servicelb hands the LoadBalancer ports 80/443
+# to the laptop (see bootstrap/k3d-homelab.yaml), so no MetalLB is needed.
+controller:
+  replicaCount: 1
+  ingressClassResource:
+    default: true
+  service:
+    type: LoadBalancer
+  resources:
+    requests: { cpu: 100m, memory: 128Mi }
+    limits: { memory: 256Mi }
+  metrics:
+    enabled: true          # phase 3 scrapes it
+  config:
+    proxy-body-size: 64m   # PDF uploads
+    proxy-read-timeout: "3600"
+    proxy-send-timeout: "3600"

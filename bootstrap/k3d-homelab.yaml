@@ -1,0 +1,31 @@
+# k3d cluster config: 1 server + 2 agents, ports 80/443 on the laptop, own registry.
+# Create with:  k3d cluster create --config bootstrap/k3d-homelab.yaml
+apiVersion: k3d.io/v1alpha5
+kind: Simple
+metadata:
+  name: homelab
+servers: 1
+agents: 2
+ports:
+  - port: 80:80
+    nodeFilters: [loadbalancer]
+  - port: 443:443
+    nodeFilters: [loadbalancer]
+registries:
+  create:
+    name: homelab-registry        # in-cluster name: homelab-registry:5000
+    host: "0.0.0.0"
+    hostPort: "5111"              # from the laptop: localhost:5111
+options:
+  k3s:
+    extraArgs:
+      - arg: --disable=traefik    # ingress comes from GitOps (phase 1)
+        nodeFilters: [server:*]
+      # Phase 6, Cilium: uncomment the next four lines, then destroy + recreate the cluster.
+      # - arg: --flannel-backend=none
+      #   nodeFilters: [server:*]
+      # - arg: --disable-network-policy
+      #   nodeFilters: [server:*]
+  kubeconfig:
+    updateDefaultKubeconfig: true
+    switchCurrentContext: true

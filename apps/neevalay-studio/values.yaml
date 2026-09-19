@@ -1,0 +1,8 @@
+image:
+  repository: homelab-registry:5000/neevalay-studio
+  tag: dev
+host: neevalay.127.0.0.1.sslip.io
+envFromSecret: neevalay-studio-env
+resources:
+  requests: { cpu: 100m, memory: 256Mi }
+  limits: { memory: 768Mi }

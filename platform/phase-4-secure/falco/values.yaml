@@ -1,0 +1,12 @@
+driver:
+  kind: modern_ebpf               # works on the WSL2 kernel, no module build
+tty: true
+falcosidekick:
+  enabled: true
+  config:
+    webhook:
+      address: http://ntfy.monitoring.svc/homelab   # phase 3 ntfy topic
+      minimumpriority: warning
+resources:
+  requests: { cpu: 50m, memory: 128Mi }
+  limits: { memory: 384Mi }

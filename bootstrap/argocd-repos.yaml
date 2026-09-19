@@ -1,0 +1,13 @@
+# Helm registries Argo CD must know about explicitly (OCI). Public, no credentials.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: repo-oci-litellm
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  type: helm
+  name: litellm
+  url: ghcr.io/berriai
+  enableOCI: "true"

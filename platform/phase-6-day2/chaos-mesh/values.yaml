@@ -1,0 +1,15 @@
+chaosDaemon:
+  runtime: containerd
+  socketPath: /run/k3s/containerd/containerd.sock     # k3s path, not /run/containerd
+dashboard:
+  create: true
+  securityMode: false
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: homelab-ca
+    hosts: [{ name: chaos.127.0.0.1.sslip.io, tls: true, tlsSecret: chaos-tls }]
+controllerManager:
+  replicaCount: 1
+  resources: { requests: { cpu: 20m, memory: 64Mi } }

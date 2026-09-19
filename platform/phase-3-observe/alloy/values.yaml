@@ -1,0 +1,27 @@
+# Alloy as a DaemonSet shipping every pod's logs to Loki.
+alloy:
+  configMap:
+    content: |
+      discovery.kubernetes "pods" { role = "pod" }
+
+      discovery.relabel "pods" {
+        targets = discovery.kubernetes.pods.targets
+        rule { source_labels = ["__meta_kubernetes_namespace"];      target_label = "namespace" }
+        rule { source_labels = ["__meta_kubernetes_pod_name"];       target_label = "pod" }
+        rule { source_labels = ["__meta_kubernetes_pod_container_name"]; target_label = "container" }
+        rule { source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name"]; target_label = "app" }
+      }
+
+      loki.source.kubernetes "pods" {
+        targets    = discovery.relabel.pods.output
+        forward_to = [loki.write.default.receiver]
+      }
+
+      loki.write "default" {
+        endpoint { url = "http://loki-gateway.monitoring.svc/loki/api/v1/push" }
+      }
+  resources:
+    requests: { cpu: 20m, memory: 64Mi }
+    limits: { memory: 192Mi }
+controller:
+  type: daemonset

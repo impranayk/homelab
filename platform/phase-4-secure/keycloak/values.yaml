@@ -1,0 +1,31 @@
+# Keycloak (codecentric keycloakx). Realm "homelab" is created by hand the first time;
+# export it afterwards to platform/phase-4-secure/keycloak/extras/realm-homelab.json.
+command:
+  - /opt/keycloak/bin/kc.sh
+  - start
+  - --http-enabled=true
+  - --hostname-strict=false
+  - --proxy-headers=xforwarded
+extraEnv: |
+  - name: KC_BOOTSTRAP_ADMIN_USERNAME
+    value: admin
+  - name: KC_BOOTSTRAP_ADMIN_PASSWORD
+    value: change-me-on-first-login
+  - name: KC_HOSTNAME
+    value: https://keycloak.127.0.0.1.sslip.io
+  - name: JAVA_OPTS_APPEND
+    value: -Xms256m -Xmx512m
+database:
+  vendor: dev-file               # phase 5: switch to postgres on CloudNativePG
+ingress:
+  enabled: true
+  ingressClassName: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: homelab-ca
+  rules:
+    - host: keycloak.127.0.0.1.sslip.io
+      paths: [{ path: /, pathType: Prefix }]
+  tls: [{ secretName: keycloak-tls, hosts: [keycloak.127.0.0.1.sslip.io] }]
+resources:
+  requests: { cpu: 100m, memory: 512Mi }
+  limits: { memory: 768Mi }

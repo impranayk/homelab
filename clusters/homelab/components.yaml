@@ -1,0 +1,255 @@
+# Every layer of the lab. One entry = one Argo CD Application (plus "<name>-extras" if the
+# folder has an extras/ directory of plain manifests). Order inside a phase is by wave.
+repo:
+  url: REPLACE-WITH-YOUR-REPO     # e.g. https://github.com/impranayk/homelab.git
+  revision: main
+
+components:
+  # ---------------------------------------------------------------- phase 1 · cluster
+  - name: cert-manager
+    phase: 1
+    wave: 0
+    namespace: cert-manager
+    path: platform/phase-1-cluster/cert-manager
+    extras: true                    # the lab CA + ClusterIssuer (wave+1 automatically)
+    chart: { repoURL: https://charts.jetstack.io, name: cert-manager, version: "1.21.2" }
+
+  - name: ingress-nginx
+    phase: 1
+    wave: 0
+    namespace: ingress-nginx
+    path: platform/phase-1-cluster/ingress-nginx
+    chart: { repoURL: https://kubernetes.github.io/ingress-nginx, name: ingress-nginx, version: "4.15.1" }
+
+  - name: drjhagpt-pro
+    phase: 1
+    wave: 20
+    namespace: apps
+    path: apps/drjhagpt-pro
+    localChart: charts/streamlit-app
+
+  - name: neevalay-studio
+    phase: 1
+    wave: 20
+    enabled: false                  # switch on when its image is in the registry
+    namespace: apps
+    path: apps/neevalay-studio
+    localChart: charts/streamlit-app
+
+  # ---------------------------------------------------------------- phase 2 · delivery
+  - name: argo-cd                   # from here on Argo CD manages its own Helm release
+    phase: 2
+    wave: 2
+    namespace: argocd
+    path: platform/phase-2-delivery/argo-cd
+    chart: { repoURL: https://argoproj.github.io/argo-helm, name: argo-cd, version: "10.9.2" }
+
+  - name: gitea
+    phase: 2
+    wave: 3
+    namespace: gitea
+    path: platform/phase-2-delivery/gitea
+    chart: { repoURL: https://dl.gitea.com/charts, name: gitea, version: "12.7.0" }
+
+  # ---------------------------------------------------------------- phase 3 · observe
+  - name: kube-prometheus-stack
+    phase: 3
+    wave: 5
+    namespace: monitoring
+    path: platform/phase-3-observe/kube-prometheus-stack
+    chart: { repoURL: https://prometheus-community.github.io/helm-charts, name: kube-prometheus-stack, version: "91.4.1" }
+
+  - name: loki
+    phase: 3
+    wave: 6
+    namespace: monitoring
+    path: platform/phase-3-observe/loki
+    chart: { repoURL: https://grafana.github.io/helm-charts, name: loki, version: "7.3.0" }
+
+  - name: alloy
+    phase: 3
+    wave: 7
+    namespace: monitoring
+    path: platform/phase-3-observe/alloy
+    chart: { repoURL: https://grafana.github.io/helm-charts, name: alloy, version: "1.12.1" }
+
+  - name: tempo
+    phase: 3
+    wave: 6
+    namespace: monitoring
+    path: platform/phase-3-observe/tempo
+    chart: { repoURL: https://grafana.github.io/helm-charts, name: tempo, version: "1.24.4" }
+
+  - name: opentelemetry-collector
+    phase: 3
+    wave: 7
+    namespace: monitoring
+    path: platform/phase-3-observe/opentelemetry-collector
+    chart: { repoURL: https://open-telemetry.github.io/opentelemetry-helm-charts, name: opentelemetry-collector, version: "0.173.1" }
+
+  - name: ntfy                      # plain manifests only (no chart)
+    phase: 3
+    wave: 6
+    namespace: monitoring
+    path: platform/phase-3-observe/ntfy
+    extras: true
+
+  # ---------------------------------------------------------------- phase 4 · secure
+  - name: external-secrets
+    phase: 4
+    wave: 7
+    namespace: external-secrets
+    path: platform/phase-4-secure/external-secrets
+    chart: { repoURL: https://charts.external-secrets.io, name: external-secrets, version: "2.10.0" }
+
+  - name: openbao
+    phase: 4
+    wave: 7
+    namespace: openbao
+    path: platform/phase-4-secure/openbao
+    chart: { repoURL: https://openbao.github.io/openbao-helm, name: openbao, version: "0.29.5" }
+
+  - name: keycloak
+    phase: 4
+    wave: 8
+    namespace: keycloak
+    path: platform/phase-4-secure/keycloak
+    chart: { repoURL: https://codecentric.github.io/helm-charts, name: keycloakx, version: "7.3.2" }
+
+  - name: kyverno
+    phase: 4
+    wave: 8
+    namespace: kyverno
+    path: platform/phase-4-secure/kyverno
+    extras: true                    # the lab's own policies
+    chart: { repoURL: https://kyverno.github.io/kyverno, name: kyverno, version: "3.9.1" }
+
+  - name: kyverno-policies          # pod-security baseline, audit mode
+    phase: 4
+    wave: 9
+    namespace: kyverno
+    path: platform/phase-4-secure/kyverno-policies
+    chart: { repoURL: https://kyverno.github.io/kyverno, name: kyverno-policies, version: "3.9.1" }
+
+  - name: trivy-operator
+    phase: 4
+    wave: 9
+    namespace: trivy-system
+    path: platform/phase-4-secure/trivy-operator
+    chart: { repoURL: https://aquasecurity.github.io/helm-charts, name: trivy-operator, version: "0.36.0" }
+
+  - name: falco
+    phase: 4
+    wave: 9
+    namespace: falco
+    path: platform/phase-4-secure/falco
+    chart: { repoURL: https://falcosecurity.github.io/charts, name: falco, version: "9.1.0" }
+
+  # ---------------------------------------------------------------- phase 5 · ai
+  - name: cloudnative-pg
+    phase: 5
+    wave: 10
+    namespace: cnpg-system
+    path: platform/phase-5-ai/cloudnative-pg
+    chart: { repoURL: https://cloudnative-pg.io/charts, name: cloudnative-pg, version: "0.29.0" }
+
+  - name: postgres                  # the Postgres cluster itself (pgvector image)
+    phase: 5
+    wave: 11
+    namespace: ai
+    path: platform/phase-5-ai/postgres
+    chart: { repoURL: https://cloudnative-pg.io/charts, name: cluster, version: "0.8.1" }
+
+  - name: minio
+    phase: 5
+    wave: 10
+    namespace: ai
+    path: platform/phase-5-ai/minio
+    chart: { repoURL: https://charts.min.io, name: minio, version: "5.4.0" }
+
+  - name: ollama
+    phase: 5
+    wave: 11
+    namespace: ai
+    path: platform/phase-5-ai/ollama
+    chart: { repoURL: https://otwld.github.io/ollama-helm, name: ollama, version: "1.82.0" }
+
+  - name: litellm
+    phase: 5
+    wave: 12
+    namespace: ai
+    path: platform/phase-5-ai/litellm
+    chart: { repoURL: ghcr.io/berriai, name: litellm-helm, version: "1.101.0" }   # OCI, see bootstrap/argocd-repos.yaml
+
+  - name: langfuse
+    phase: 5
+    wave: 12
+    namespace: ai
+    path: platform/phase-5-ai/langfuse
+    chart: { repoURL: https://langfuse.github.io/langfuse-k8s, name: langfuse, version: "2.1.1" }
+
+  - name: open-webui
+    phase: 5
+    wave: 12
+    namespace: ai
+    path: platform/phase-5-ai/open-webui
+    chart: { repoURL: https://helm.openwebui.com, name: open-webui, version: "16.5.0" }
+
+  - name: argo-workflows
+    phase: 5
+    wave: 11
+    namespace: argo
+    path: platform/phase-5-ai/argo-workflows
+    extras: true                    # the nightly PDF-ingestion CronWorkflow
+    chart: { repoURL: https://argoproj.github.io/argo-helm, name: argo-workflows, version: "2.0.7" }
+
+  # ---------------------------------------------------------------- phase 6 · day 2
+  - name: cilium                    # needs the cluster recreated with flannel off (see README)
+    phase: 6
+    wave: -5
+    enabled: false
+    namespace: kube-system
+    path: platform/phase-6-day2/cilium
+    chart: { repoURL: https://helm.cilium.io, name: cilium, version: "1.20.2" }
+
+  - name: longhorn
+    phase: 6
+    wave: 13
+    namespace: longhorn-system
+    path: platform/phase-6-day2/longhorn
+    chart: { repoURL: https://charts.longhorn.io, name: longhorn, version: "1.12.1" }
+
+  - name: velero
+    phase: 6
+    wave: 14
+    namespace: velero
+    path: platform/phase-6-day2/velero
+    chart: { repoURL: https://vmware-tanzu.github.io/helm-charts, name: velero, version: "12.2.0" }
+
+  - name: argo-rollouts
+    phase: 6
+    wave: 13
+    namespace: argo-rollouts
+    path: platform/phase-6-day2/argo-rollouts
+    chart: { repoURL: https://argoproj.github.io/argo-helm, name: argo-rollouts, version: "2.43.2" }
+
+  - name: chaos-mesh
+    phase: 6
+    wave: 14
+    namespace: chaos-mesh
+    path: platform/phase-6-day2/chaos-mesh
+    chart: { repoURL: https://charts.chaos-mesh.org, name: chaos-mesh, version: "2.8.4" }
+
+  - name: opencost
+    phase: 6
+    wave: 14
+    namespace: opencost
+    path: platform/phase-6-day2/opencost
+    chart: { repoURL: https://opencost.github.io/opencost-helm-chart, name: opencost, version: "2.5.31" }
+
+  - name: kube-bench                # a Job, plain manifest
+    phase: 6
+    wave: 15
+    namespace: kube-bench
+    path: platform/phase-6-day2/kube-bench
+    extras: true

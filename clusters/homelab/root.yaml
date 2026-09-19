@@ -1,0 +1,28 @@
+# The one Application you apply by hand. It renders clusters/homelab/apps (a tiny chart)
+# with components.yaml + phases.yaml as values, which produces every other Application.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: REPLACE-WITH-YOUR-REPO      # keep in step with components.yaml repo.url
+    targetRevision: main
+    path: clusters/homelab/apps
+    helm:
+      valueFiles:
+        - ../components.yaml
+        - ../phases.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

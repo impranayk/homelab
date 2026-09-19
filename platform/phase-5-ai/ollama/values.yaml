@@ -1,0 +1,12 @@
+# CPU only. A 3B model at Q4 needs ~2.5 GB; keep-alive short so RAM is returned when idle.
+ollama:
+  gpu: { enabled: false }
+  models:
+    pull: [qwen2.5:1.5b, llama3.2:3b]
+  keepAlive: 5m
+persistentVolume:
+  enabled: true
+  size: 10Gi
+resources:
+  requests: { cpu: "1", memory: 1Gi }
+  limits: { cpu: "4", memory: 4Gi }

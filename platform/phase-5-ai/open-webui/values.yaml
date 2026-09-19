@@ -1,0 +1,25 @@
+# ChatGPT-style front end for the gateway. Talks to LiteLLM, not to Ollama directly,
+# so every conversation is logged, costed and rate-limited the same way the apps are.
+ollama: { enabled: false }
+pipelines: { enabled: false }
+openaiBaseApiUrl: http://litellm.ai.svc:4000/v1
+extraEnvVars:
+  - name: OPENAI_API_KEY
+    valueFrom: { secretKeyRef: { name: litellm-env, key: LITELLM_MASTER_KEY } }
+  - name: ENABLE_SIGNUP
+    value: "false"
+  - name: WEBUI_URL
+    value: https://chat.127.0.0.1.sslip.io
+ingress:
+  enabled: true
+  class: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: homelab-ca
+  host: chat.127.0.0.1.sslip.io
+  tls: true
+  existingSecret: ""
+persistence:
+  size: 2Gi
+resources:
+  requests: { cpu: 50m, memory: 256Mi }
+  limits: { memory: 768Mi }

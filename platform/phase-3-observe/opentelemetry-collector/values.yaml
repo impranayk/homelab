@@ -1,0 +1,34 @@
+# One collector Deployment: apps send OTLP here, it fans out to Tempo (traces) and Prometheus (metrics).
+mode: deployment
+image:
+  repository: otel/opentelemetry-collector-k8s
+replicaCount: 1
+resources:
+  requests: { cpu: 20m, memory: 64Mi }
+  limits: { memory: 192Mi }
+config:
+  receivers:
+    otlp:
+      protocols:
+        grpc: { endpoint: 0.0.0.0:4317 }
+        http: { endpoint: 0.0.0.0:4318 }
+  exporters:
+    otlp/tempo:
+      endpoint: tempo.monitoring.svc:4317
+      tls: { insecure: true }
+    prometheus:
+      endpoint: 0.0.0.0:8889
+  service:
+    pipelines:
+      traces:
+        receivers: [otlp]
+        exporters: [otlp/tempo]
+      metrics:
+        receivers: [otlp]
+        exporters: [prometheus]
+ports:
+  prom-exporter:
+    enabled: true
+    containerPort: 8889
+    servicePort: 8889
+    protocol: TCP

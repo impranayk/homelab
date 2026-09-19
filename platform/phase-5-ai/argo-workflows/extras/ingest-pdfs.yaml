@@ -1,0 +1,27 @@
+# The nightly index refresh (today a GitHub Action) as a Kubernetes job:
+# read new PDFs from MinIO, chunk + embed, write to pgvector. Replace the image with your ingester.
+apiVersion: argoproj.io/v1alpha1
+kind: CronWorkflow
+metadata:
+  name: ingest-pdfs
+  namespace: ai
+spec:
+  schedule: "30 2 * * *"
+  timezone: Asia/Kolkata
+  concurrencyPolicy: Forbid
+  workflowSpec:
+    entrypoint: ingest
+    templates:
+      - name: ingest
+        container:
+          image: homelab-registry:5000/drjhagpt-ingest:dev
+          command: [python, -m, chatbot.ingest]
+          envFrom:
+            - secretRef: { name: drjhagpt-pro-env }
+          env:
+            - { name: S3_ENDPOINT, value: http://minio.ai.svc:9000 }
+            - { name: S3_BUCKET, value: pdfs }
+            - { name: DATABASE_URL, valueFrom: { secretKeyRef: { name: postgres-app, key: uri } } }
+          resources:
+            requests: { cpu: 200m, memory: 512Mi }
+            limits: { memory: 1Gi }

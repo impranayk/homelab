@@ -1,0 +1,22 @@
+# CIS Kubernetes benchmark against this cluster. Read with:  kubectl -n kube-bench logs job/kube-bench
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kube-bench
+  namespace: kube-bench
+spec:
+  ttlSecondsAfterFinished: 86400
+  template:
+    spec:
+      hostPID: true
+      restartPolicy: Never
+      containers:
+        - name: kube-bench
+          image: docker.io/aquasec/kube-bench:v0.10.0
+          args: [run, --benchmark, k3s-cis-1.24]
+          volumeMounts:
+            - { name: var-lib-rancher, mountPath: /var/lib/rancher, readOnly: true }
+            - { name: etc-systemd, mountPath: /etc/systemd, readOnly: true }
+      volumes:
+        - { name: var-lib-rancher, hostPath: { path: /var/lib/rancher } }
+        - { name: etc-systemd, hostPath: { path: /etc/systemd } }

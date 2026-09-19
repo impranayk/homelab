@@ -1,0 +1,65 @@
+# Trimmed for 20 GB: 2-day retention, one replica of everything, no persistence for Grafana.
+prometheus:
+  prometheusSpec:
+    retention: 2d
+    retentionSize: 4GB
+    scrapeInterval: 30s
+    resources:
+      requests: { cpu: 100m, memory: 512Mi }
+      limits: { memory: 1Gi }
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          resources: { requests: { storage: 5Gi } }
+    # pick up ServiceMonitors from every namespace, not only the chart's
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+alertmanager:
+  alertmanagerSpec:
+    resources: { requests: { cpu: 10m, memory: 64Mi } }
+  config:
+    route:
+      receiver: ntfy
+      group_by: [alertname, namespace]
+      routes:
+        - receiver: "null"
+          matchers: [alertname = "Watchdog"]
+    receivers:
+      - name: "null"
+      - name: ntfy
+        webhook_configs:
+          # ntfy accepts Alertmanager webhooks directly on /<topic>?... via its bridge; simplest
+          # working path on the laptop is the ntfy-alertmanager bridge in ntfy/extras.
+          - url: http://ntfy-alertmanager.monitoring.svc:8080/hook
+            send_resolved: true
+grafana:
+  adminPassword: change-me
+  persistence: { enabled: false }
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: homelab-ca
+    hosts: [grafana.127.0.0.1.sslip.io]
+    tls:
+      - secretName: grafana-tls
+        hosts: [grafana.127.0.0.1.sslip.io]
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      url: http://loki-gateway.monitoring.svc
+    - name: Tempo
+      type: tempo
+      url: http://tempo.monitoring.svc:3100
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+kubeStateMetrics:
+  resources: { requests: { cpu: 10m, memory: 32Mi } }
+prometheus-node-exporter:
+  resources: { requests: { cpu: 10m, memory: 32Mi } }
+# k3d hides these control-plane components; stop the dead-target alerts
+kubeControllerManager: { enabled: false }
+kubeScheduler: { enabled: false }
+kubeProxy: { enabled: false }
+kubeEtcd: { enabled: false }

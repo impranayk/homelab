@@ -1,0 +1,14 @@
+trivy:
+  ignoreUnfixed: true
+  severity: CRITICAL,HIGH
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { memory: 512Mi }
+operator:
+  scanJobsConcurrentLimit: 1       # one scan at a time on the laptop
+  configAuditScannerEnabled: true
+  vulnerabilityScannerEnabled: true
+  exposedSecretScannerEnabled: true
+  metricsVulnIdEnabled: true       # phase 3 dashboards can show CVE ids
+resources:
+  requests: { cpu: 20m, memory: 64Mi }

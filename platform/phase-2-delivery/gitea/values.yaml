@@ -1,0 +1,44 @@
+# Gitea: git hosting + Actions runner + container registry, in one small container.
+# First login: admin user below, change the password on first sign-in.
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: homelab-ca
+  hosts:
+    - host: gitea.127.0.0.1.sslip.io
+      paths: [{ path: /, pathType: Prefix }]
+  tls:
+    - secretName: gitea-tls
+      hosts: [gitea.127.0.0.1.sslip.io]
+gitea:
+  admin:
+    username: homelab
+    password: change-me-on-first-login
+    email: homelab@example.invalid
+  config:
+    server:
+      ROOT_URL: https://gitea.127.0.0.1.sslip.io/
+    packages:
+      ENABLED: true                # this is the container registry
+    actions:
+      ENABLED: true
+    service:
+      DISABLE_REGISTRATION: true
+# laptop mode: no HA, built-in sqlite-free single Postgres, no valkey cluster
+postgresql-ha: { enabled: false }
+postgresql:
+  enabled: true
+  primary:
+    resources: { requests: { cpu: 50m, memory: 128Mi } }
+valkey-cluster: { enabled: false }
+valkey: { enabled: true }
+actions:
+  enabled: true
+  provisioning:
+    enabled: true                  # creates the runner registration token
+resources:
+  requests: { cpu: 100m, memory: 256Mi }
+  limits: { memory: 768Mi }
+persistence:
+  size: 10Gi

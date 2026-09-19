@@ -1,0 +1,23 @@
+# Requires the cluster created with flannel disabled (bootstrap/k3d-homelab.yaml, phase 6 lines).
+operator:
+  replicas: 1
+  resources: { requests: { cpu: 20m, memory: 64Mi } }
+resources:
+  requests: { cpu: 50m, memory: 128Mi }
+  limits: { memory: 512Mi }
+hubble:
+  enabled: true
+  relay: { enabled: true }
+  ui:
+    enabled: true
+    ingress:
+      enabled: true
+      className: nginx
+      annotations:
+        cert-manager.io/cluster-issuer: homelab-ca
+      hosts: [hubble.127.0.0.1.sslip.io]
+      tls: [{ secretName: hubble-tls, hosts: [hubble.127.0.0.1.sslip.io] }]
+ipam:
+  mode: kubernetes
+k8sServiceHost: k3d-homelab-server-0
+k8sServicePort: 6443

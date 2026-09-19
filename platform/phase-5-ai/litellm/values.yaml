@@ -1,0 +1,38 @@
+# One OpenAI-compatible endpoint for every app. Routes to Ollama locally, Groq/Gemini in the cloud.
+# Provider keys come from the Secret "litellm-env" (phase 4: ExternalSecret from OpenBao).
+environmentSecrets: [litellm-env]     # GROQ_API_KEY, GEMINI_API_KEY, LITELLM_MASTER_KEY
+db:
+  useExisting: true                   # CloudNativePG cluster "postgres" in this namespace
+  endpoint: postgres-rw.ai.svc
+  database: litellm
+  secret:
+    name: postgres-app                # created by the CNPG chart
+    usernameKey: username
+    passwordKey: password
+proxy_config:
+  model_list:
+    - model_name: local-small
+      litellm_params: { model: ollama/qwen2.5:1.5b, api_base: http://ollama.ai.svc:11434 }
+    - model_name: local-3b
+      litellm_params: { model: ollama/llama3.2:3b, api_base: http://ollama.ai.svc:11434 }
+    - model_name: groq-70b
+      litellm_params: { model: groq/llama-3.3-70b-versatile, api_key: os.environ/GROQ_API_KEY }
+    - model_name: gemini-flash
+      litellm_params: { model: gemini/gemini-2.5-flash, api_key: os.environ/GEMINI_API_KEY }
+  router_settings:
+    fallbacks: [{ groq-70b: [gemini-flash, local-3b] }]
+  litellm_settings:
+    success_callback: [langfuse]
+    failure_callback: [langfuse]
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: homelab-ca
+  hosts:
+    - host: litellm.127.0.0.1.sslip.io
+      paths: [{ path: /, pathType: Prefix }]
+  tls: [{ secretName: litellm-tls, hosts: [litellm.127.0.0.1.sslip.io] }]
+resources:
+  requests: { cpu: 50m, memory: 256Mi }
+  limits: { memory: 768Mi }

@@ -1,0 +1,14 @@
+image:
+  repository: homelab-registry:5000/streamlit-app
+  tag: dev
+  pullPolicy: IfNotPresent
+replicaCount: 1
+port: 8501
+host: app.127.0.0.1.sslip.io
+envFromSecret: ""              # e.g. drjhagpt-pro-env (bootstrap/20-secrets.sh)
+env: {}                        # plain key: value pairs
+resources:
+  requests: { cpu: 100m, memory: 256Mi }
+  limits: { memory: 768Mi }
+livenessPath: /_stcore/health
+strategy: Recreate             # Streamlit holds websocket sessions; one pod at a time on the laptop

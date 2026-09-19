@@ -1,0 +1,4 @@
+# Pod Security Standards baseline as Kyverno policies, audit only. Read the reports, then tighten.
+podSecurityStandard: baseline
+validationFailureAction: Audit
+background: true

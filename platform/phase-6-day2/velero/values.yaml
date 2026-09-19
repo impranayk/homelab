@@ -1,0 +1,33 @@
+# Backups to the MinIO "velero" bucket. Drill: delete the apps namespace, then
+#   velero restore create --from-backup <name>
+initContainers:
+  - name: velero-plugin-for-aws
+    image: velero/velero-plugin-for-aws:v1.13.0
+    volumeMounts: [{ mountPath: /target, name: plugins }]
+configuration:
+  backupStorageLocation:
+    - name: minio
+      provider: aws
+      bucket: velero
+      default: true
+      config:
+        region: us-east-1
+        s3ForcePathStyle: "true"
+        s3Url: http://minio.ai.svc:9000
+  volumeSnapshotLocation:
+    - name: default
+      provider: aws
+      config: { region: us-east-1 }
+credentials:
+  useSecret: true
+  existingSecret: minio-credentials          # [default] aws_access_key_id / aws_secret_access_key
+deployNodeAgent: true                        # file-system backup of PVCs (kopia)
+schedules:
+  nightly:
+    schedule: "0 1 * * *"
+    template:
+      includedNamespaces: [apps, ai, gitea]
+      ttl: 168h
+resources:
+  requests: { cpu: 50m, memory: 128Mi }
+  limits: { memory: 512Mi }

@@ -1,0 +1,6 @@
+# Real values come from ../components.yaml and ../phases.yaml (see root.yaml).
+repo:
+  url: ""
+  revision: main
+phases: {}
+components: []

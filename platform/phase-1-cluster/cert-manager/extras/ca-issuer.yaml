@@ -1,0 +1,35 @@
+# The lab's own certificate authority:
+#   selfsigned-bootstrap  ->  homelab-ca (a CA certificate)  ->  homelab-ca ClusterIssuer
+# Every Ingress annotated  cert-manager.io/cluster-issuer: homelab-ca  gets a certificate.
+# bootstrap/30-trust-ca.sh imports the CA into Windows so the browser trusts it.
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: selfsigned-bootstrap
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: homelab-ca
+  namespace: cert-manager
+spec:
+  isCA: true
+  commonName: homelab-ca
+  secretName: homelab-ca
+  duration: 87600h        # 10 years
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    name: selfsigned-bootstrap
+    kind: ClusterIssuer
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: homelab-ca
+spec:
+  ca:
+    secretName: homelab-ca

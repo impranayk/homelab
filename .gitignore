@@ -1,0 +1,7 @@
+secrets/*
+!secrets/README.md
+*.env
+*.local.yaml
+charts/**/charts/
+charts/**/Chart.lock
+.DS_Store

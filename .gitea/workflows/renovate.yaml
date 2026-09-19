@@ -1,0 +1,20 @@
+# Renovate for THIS repository: opens PRs when a chart pin in components.yaml is stale.
+# Runs on the Gitea Actions runner nightly. Needs a Gitea token in the secret RENOVATE_TOKEN.
+name: renovate
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+jobs:
+  renovate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run Renovate
+        run: |
+          docker run --rm \
+            -e RENOVATE_PLATFORM=gitea \
+            -e RENOVATE_ENDPOINT=https://gitea.127.0.0.1.sslip.io/api/v1 \
+            -e RENOVATE_TOKEN="${{ secrets.RENOVATE_TOKEN }}" \
+            -e RENOVATE_REPOSITORIES=homelab/homelab \
+            -e LOG_LEVEL=info \
+            renovate/renovate:latest

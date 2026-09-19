@@ -1,0 +1,23 @@
+# One Postgres with pgvector, run by the CloudNativePG operator. Same schema as the Supabase
+# project (dj_* tables, halfvec index) so the apps only change a connection string.
+type: postgresql
+mode: standalone
+cluster:
+  instances: 1
+  imageName: ghcr.io/tensorchord/cloudnative-pgvecto.rs:16-v0.4.0   # Postgres 16 + pgvector
+  storage:
+    size: 5Gi
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { memory: 768Mi }
+  postgresql:
+    parameters:
+      shared_buffers: 128MB
+      max_connections: "100"
+  initdb:
+    database: app
+    owner: app
+    postInitApplicationSQL:
+      - CREATE EXTENSION IF NOT EXISTS vector;
+backups:
+  enabled: false                  # phase 6: MinIO via barmanObjectStore
