@@ -20,7 +20,7 @@ configuration:
       config: { region: us-east-1 }
 credentials:
   useSecret: true
-  existingSecret: minio-credentials          # [default] aws_access_key_id / aws_secret_access_key
+  existingSecret: minio-credentials          # key "cloud" in AWS credentials-file form (20-secrets.sh)
 deployNodeAgent: true                        # file-system backup of PVCs (kopia)
 schedules:
   nightly:

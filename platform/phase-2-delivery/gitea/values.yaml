@@ -13,8 +13,7 @@ ingress:
       hosts: [gitea.127.0.0.1.sslip.io]
 gitea:
   admin:
-    username: homelab
-    password: change-me-on-first-login
+    existingSecret: gitea-admin      # keys: username, password  (bootstrap/20-secrets.sh)
     email: homelab@example.invalid
   config:
     server:

@@ -1,7 +1,6 @@
 mode: standalone
 replicas: 1
-rootUser: homelab
-rootPassword: change-me-minio
+existingSecret: minio-root         # keys: rootUser, rootPassword
 persistence:
   size: 20Gi
 resources:

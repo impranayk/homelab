@@ -21,7 +21,7 @@ platform/phase-N-*/       one folder per component: values.yaml (+ extras/ manif
 charts/streamlit-app/     shared Helm chart for the Streamlit apps
 apps/<name>/              per-app values (and the Dockerfile to copy into the app repo)
 .gitea/workflows/         CI for phase 2 (build, Gitleaks, Trivy, push, Renovate)
-secrets/                  gitignored .env files used by bootstrap/20-secrets.sh
+secrets/                  gitignored <namespace>.<secret>.env files (21-gen-secrets.sh makes them)
 ```
 
 ## Phase 1: cluster and first app
@@ -32,7 +32,8 @@ cp bootstrap/wslconfig.example /mnt/c/Users/$USER_WIN/.wslconfig   # once, then 
 bootstrap/00-tools.sh        # k3d, kubectl, helm, k9s, argocd CLI
 bootstrap/01-cluster.sh      # 3-node k3d cluster + local registry
 bootstrap/10-argocd.sh       # Argo CD + the root app (edit clusters/homelab/components.yaml repo.url first)
-bootstrap/20-secrets.sh      # app secrets from secrets/*.env
+bootstrap/21-gen-secrets.sh  # random platform passwords into secrets/, then add your API keys
+bootstrap/20-secrets.sh      # apply them as Kubernetes Secrets
 bootstrap/30-trust-ca.sh     # import the lab CA into Windows so every URL gets a green lock
 ```
 
@@ -88,6 +89,7 @@ setup. TLS comes from cert-manager using the `homelab-ca` ClusterIssuer
   reach phase 6, uncomment the flannel lines in `bootstrap/k3d-homelab.yaml`,
   run `bootstrap/90-destroy.sh` then `01-cluster.sh` again. Argo CD rebuilds
   everything from this repo; that is the point of the exercise.
-- Before phase 4, app secrets are plain Kubernetes Secrets created by
-  `bootstrap/20-secrets.sh`. Phase 4 replaces them with ExternalSecrets backed
-  by OpenBao.
+- No password or key is committed. Charts reference Secrets by name
+  (`existingSecret`); `bootstrap/21-gen-secrets.sh` generates the platform
+  passwords locally and `20-secrets.sh` applies them. Phase 4 replaces them with
+  ExternalSecrets backed by OpenBao.

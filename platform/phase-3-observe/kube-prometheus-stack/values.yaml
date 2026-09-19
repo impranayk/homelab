@@ -34,7 +34,8 @@ alertmanager:
           - url: http://ntfy-alertmanager.monitoring.svc:8080/hook
             send_resolved: true
 grafana:
-  adminPassword: change-me
+  admin:
+    existingSecret: grafana-admin    # keys: admin-user, admin-password
   persistence: { enabled: false }
   ingress:
     enabled: true

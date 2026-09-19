@@ -10,7 +10,8 @@ extraEnv: |
   - name: KC_BOOTSTRAP_ADMIN_USERNAME
     value: admin
   - name: KC_BOOTSTRAP_ADMIN_PASSWORD
-    value: change-me-on-first-login
+    valueFrom:
+      secretKeyRef: { name: keycloak-admin, key: password }
   - name: KC_HOSTNAME
     value: https://keycloak.127.0.0.1.sslip.io
   - name: JAVA_OPTS_APPEND

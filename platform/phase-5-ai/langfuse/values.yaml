@@ -3,9 +3,9 @@
 langfuse:
   nextauth:
     url: https://langfuse.127.0.0.1.sslip.io
-    secret: { value: change-me-nextauth }
-  salt: { value: change-me-salt }
-  encryptionKey: { value: "0000000000000000000000000000000000000000000000000000000000000000" }
+    secret: { secretKeyRef: { name: langfuse-secrets, key: nextauth-secret } }
+  salt: { secretKeyRef: { name: langfuse-secrets, key: salt } }
+  encryptionKey: { secretKeyRef: { name: langfuse-secrets, key: encryption-key } }
   ingress:
     enabled: true
     className: nginx
@@ -30,15 +30,15 @@ postgresql:
 clickhouse:
   deploy: true
   replicaCount: 1
-  auth: { password: change-me-clickhouse }
+  auth: { existingSecret: langfuse-secrets, existingSecretKey: clickhouse-password }
   resources: { requests: { cpu: 100m, memory: 512Mi }, limits: { memory: 1Gi } }
 redis:
   deploy: true
-  auth: { password: change-me-redis }
+  auth: { existingSecret: langfuse-secrets, existingSecretPasswordKey: redis-password }
 s3:
   deploy: false
   endpoint: http://minio.ai.svc:9000
   forcePathStyle: true
   bucket: langfuse
-  accessKeyId: { value: homelab }
-  secretAccessKey: { value: change-me-minio }
+  accessKeyId: { secretKeyRef: { name: minio-root, key: rootUser } }
+  secretAccessKey: { secretKeyRef: { name: minio-root, key: rootPassword } }
