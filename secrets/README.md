@@ -5,6 +5,7 @@ still contain `REPLACE` are skipped).
 | File | Secret | Used by |
 |---|---|---|
 | gitea.gitea-admin.env | gitea/gitea-admin | Gitea first admin (phase 2) |
+| gitea.gitea-runner-token.env | gitea/gitea-runner-token | Actions runner registration (`runner-token=…`, made by hand after Gitea is up) |
 | monitoring.grafana-admin.env | monitoring/grafana-admin | Grafana login (phase 3) |
 | keycloak.keycloak-admin.env | keycloak/keycloak-admin | Keycloak bootstrap admin (phase 4) |
 | ai.minio-root.env | ai/minio-root (+ velero, longhorn-system copies) | MinIO, Velero, Longhorn backups |

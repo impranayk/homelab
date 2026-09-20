@@ -1,0 +1,32 @@
+# Gitea Actions runner (chart "actions" from dl.gitea.com). Runs your CI jobs inside the cluster
+# with a Docker-in-Docker sidecar. Needs a registration token from a RUNNING Gitea:
+#   kubectl -n gitea exec deploy/gitea -c gitea -- gitea --config /data/gitea/conf/app.ini actions generate-runner-token
+# Put it in secrets/gitea.gitea-runner-token.env as  runner-token=<value>, run bootstrap/20-secrets.sh,
+# then set enabled: true for gitea-runner in clusters/homelab/components.yaml.
+enabled: true
+giteaRootURL: http://gitea-http.gitea.svc.cluster.local:3000   # in-cluster, so no CA trust needed
+existingSecret: gitea-runner-token
+existingSecretKey: runner-token
+statefulset:
+  replicas: 1
+  persistence:
+    size: 2Gi
+  runner:
+    resources:
+      requests: { cpu: 50m, memory: 128Mi }
+      limits: { memory: 512Mi }
+    config: |
+      log:
+        level: info
+      cache:
+        enabled: false
+      runner:
+        labels:
+          - "ubuntu-latest:docker://gitea/runner-images:ubuntu-latest"
+      container:
+        require_docker: true
+        docker_timeout: 300s
+  dind:
+    resources:
+      requests: { cpu: 100m, memory: 256Mi }
+      limits: { memory: 1Gi }

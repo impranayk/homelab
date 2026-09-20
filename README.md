@@ -57,11 +57,23 @@ Set it back to `false` to scale that whole phase to zero and get the RAM back.
 | Phase | Folder | Adds |
 |---|---|---|
 | 1 | platform/phase-1-cluster | ingress-nginx, cert-manager + lab CA, the apps |
-| 2 | platform/phase-2-delivery | Gitea (+ Actions runner, registry), Argo CD self-managed |
+| 2 | platform/phase-2-delivery | Gitea (registry, SQLite), Gitea Actions runner, Argo CD self-managed |
 | 3 | platform/phase-3-observe | kube-prometheus-stack, Loki, Alloy, Tempo, OTel collector, ntfy |
 | 4 | platform/phase-4-secure | Keycloak, OpenBao, External Secrets, Kyverno, Trivy Operator, Falco |
 | 5 | platform/phase-5-ai | CloudNativePG + pgvector, MinIO, Ollama, LiteLLM, Langfuse, Open WebUI, Argo Workflows |
 | 6 | platform/phase-6-day2 | Longhorn, Velero, Argo Rollouts, Chaos Mesh, OpenCost, kube-bench, Cilium |
+
+## Phase 2: the Actions runner
+
+Gitea must be running before its runner can register. Once https://gitea.127.0.0.1.sslip.io works:
+
+```bash
+TOKEN=$(kubectl -n gitea exec deploy/gitea -c gitea -- gitea --config /data/gitea/conf/app.ini actions generate-runner-token)
+echo "runner-token=$TOKEN" > secrets/gitea.gitea-runner-token.env
+bootstrap/20-secrets.sh
+```
+
+then set `enabled: true` on `gitea-runner` in `clusters/homelab/components.yaml`, commit, push.
 
 ## Hostnames
 
