@@ -64,7 +64,7 @@ proven Git-only change.
         nano secrets/apps.drjhagpt-pro-env.env
         bootstrap/20-secrets.sh
 
-8. **The first image, by hand.** Cloned the app repo inside Ubuntu (GitHub login reused from the Windows Git Credential Manager), added the Dockerfile and a `.dockerignore`, built and pushed. The waiting pod pulled it and went Running. The app reads its keys from environment variables; no `secrets.toml` needed.
+8. **The first image, by hand.** Cloned the app repo inside Ubuntu (GitHub login reused from the Windows Git Credential Manager), added the Dockerfile and a `.dockerignore`, built and pushed. The waiting pod pulled it and went Running. The app reads its keys from environment variables, so no `secrets.toml` was needed.
 
         git config --global credential.helper "/mnt/c/Program\ Files/Git/mingw64/bin/git-credential-manager.exe"
         git clone https://github.com/impranayk/drjhagpt-ent.git ~/drjhagpt-ent
@@ -74,7 +74,7 @@ proven Git-only change.
         docker push localhost:5111/drjhagpt-pro:dev
         kubectl -n apps get pods -w
 
-9. **Trust the lab CA.** Exports the CA certificate from the cluster and installs it in the Windows root store (UAC prompt). Green lock on every lab URL; login works against the same Supabase project as the live app.
+9. **Trust the lab CA.** Exports the CA certificate from the cluster and installs it in the Windows root store (UAC prompt). Green lock on every lab URL, and login works against the same Supabase project as the live app.
 
         bootstrap/30-trust-ca.sh
 
@@ -125,7 +125,7 @@ builds, scans and pushes the image; the running version is chosen by a tag in th
         git add -A && git commit -m "phase 2 on" && git push
         kubectl -n argocd annotate app root argocd.argoproj.io/refresh=normal --overwrite
 
-2. **Gitea would not render.** Argo CD reported *"The actions sub-chart has been outsourced to a dedicated chart"*: chart 12 moved the runner out, and it bundles Bitnami Postgres/Valkey images whose old tags are no longer served. Rewrote the values for a laptop: SQLite, in-memory cache and session, level queue, bleve indexer, all four database sub-charts off, `Recreate` strategy, unlimited body size on the ingress for image pushes. Gitea came up; logged in as `homelab` with the generated password.
+2. **Gitea would not render.** Argo CD reported *"The actions sub-chart has been outsourced to a dedicated chart"*: chart 12 moved the runner out, and it bundles Bitnami Postgres/Valkey images whose old tags are no longer served. Rewrote the values for a laptop: SQLite, in-memory cache and session, level queue, bleve indexer, all four database sub-charts off, `Recreate` strategy, unlimited body size on the ingress for image pushes. Gitea came up. Logged in as `homelab` with the generated password.
 
         kubectl -n argocd get app gitea -o jsonpath='{.status.conditions}'
         grep password secrets/gitea.gitea-admin.env
