@@ -54,7 +54,7 @@ components:
   - name: gitea-runner              # switch on after Gitea is up and the runner token secret exists
     phase: 2
     wave: 4
-    enabled: false
+    enabled: true
     namespace: gitea
     path: platform/phase-2-delivery/gitea-runner
     chart: { repoURL: https://dl.gitea.com/charts, name: actions, version: "0.1.2" }
