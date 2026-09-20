@@ -37,6 +37,8 @@ spec:
               value: "true"
             - name: STREAMLIT_BROWSER_GATHER_USAGE_STATS
               value: "false"
+            - name: STREAMLIT_SERVER_FILE_WATCHER_TYPE   # no dev-mode source watching in a container
+              value: "none"
             {{- range $k, $v := .Values.env }}
             - name: {{ $k }}
               value: {{ $v | quote }}
