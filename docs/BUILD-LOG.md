@@ -26,39 +26,63 @@ proven Git-only change.
 
 ### Steps, in order
 
-1. **Windows (PowerShell):** wrote `C:\Users\<me>\.wslconfig` (12 GB, 6 threads, 4 GB swap,
-   `autoMemoryReclaim=gradual`). `wsl --update` took WSL from 2.1.5 to 2.7.14; only after that did
-   `wsl --install -d Ubuntu-24.04` accept the distro name. `wsl --set-default Ubuntu-24.04`, `wsl --shutdown`.
-2. **Docker Desktop failed** with "Unexpected WSL error ... provisioning docker WSL distros" (too
-   old for WSL 2.7). Quit it and ran `bootstrap/00-docker.sh` (Docker Engine in Ubuntu, user added to
-   the `docker` group; `newgrp docker` was needed in the same session). `docker run --rm hello-world` passed.
-3. `git clone https://github.com/impranayk/homelab.git ~/homelab`. The scripts had lost their
-   executable bit (committed from Windows): `chmod +x bootstrap/*.sh` locally, then
-   `git update-index --chmod=+x bootstrap/*.sh` in the repo so it never recurs.
-4. `bootstrap/00-tools.sh`: k3d, kubectl, helm, k9s, argocd CLI.
-5. `bootstrap/01-cluster.sh`: cluster `homelab` created in 63 s. Three nodes Ready. Registry at
-   `localhost:5111` from the laptop, `homelab-registry:5000` from inside the cluster. Traefik disabled
-   so ingress comes from Git.
-6. `bootstrap/10-argocd.sh`: `helm install` of Argo CD, then `kubectl apply -f clusters/homelab/root.yaml`
-   and `bootstrap/argocd-repos.yaml`. Within two minutes Argo CD had installed cert-manager, the CA
-   (`cert-manager-extras`) and ingress-nginx from GitHub. `drjhagpt-pro` sat Degraded, waiting for its
-   Secret and image.
-7. `bootstrap/21-gen-secrets.sh` generated random platform passwords into `secrets/*.env`. Put the
-   app's real keys (Groq, Supabase, Gemini, the website token) into `secrets/apps.drjhagpt-pro-env.env`
-   in `KEY=value` form (Streamlit Cloud shows them as TOML `KEY = "value"`; the quotes must go).
-   `bootstrap/20-secrets.sh` created the Kubernetes Secrets; files still containing `REPLACE` are skipped.
-8. Image: `git clone` of the app repo inside Ubuntu (GitHub credentials via the Windows Git
-   Credential Manager: `git config --global credential.helper "/mnt/c/Program\ Files/Git/mingw64/bin/git-credential-manager.exe"`),
-   copied in `apps/drjhagpt-pro/Dockerfile`, wrote a `.dockerignore` (`.git`, `.env`, secrets), then
-   `docker build --build-arg APP_FILE=streamlit_app.py -t localhost:5111/drjhagpt-pro:dev .` and
-   `docker push`. The waiting pod pulled it and went `1/1 Running`. The app reads its keys from
-   environment variables; no `secrets.toml` was needed.
-9. `bootstrap/30-trust-ca.sh`: exported the CA from the `homelab-ca` Secret, `certutil -addstore Root`
-   on Windows (UAC prompt). https://drjhagpt.127.0.0.1.sslip.io with a green lock; login works
-   against the same Supabase project as the live app.
-10. **The one-rule test:** added `LAB_PHASE: "1"` under `env:` in `apps/drjhagpt-pro/values.yaml`,
-    committed, pushed. `kubectl -n argocd get app drjhagpt-pro -w` showed Synced → OutOfSync →
-    Progressing → Healthy; `kubectl -n apps exec deploy/drjhagpt-pro -- printenv LAB_PHASE` printed `1`.
+1. **Cap the Linux VM and install Ubuntu (PowerShell).** Wrote `.wslconfig` with 12 GB, 6 threads, 4 GB swap and `autoMemoryReclaim=gradual`. Updated WSL, then installed the distro; the 24.04 name is only accepted after the update.
+
+        wsl --update
+        wsl --install -d Ubuntu-24.04
+        wsl --set-default Ubuntu-24.04; wsl --shutdown
+
+2. **Docker Engine inside Ubuntu.** Docker Desktop failed with *"Unexpected WSL error ... provisioning docker WSL distros"* (too old for WSL 2.7). Quit it and installed the engine natively. The `docker` group only applies to a new shell.
+
+        bootstrap/00-docker.sh
+        newgrp docker
+        docker run --rm hello-world
+
+3. **Clone the repo and fix the script bits.** Committed from Windows, the scripts had lost their executable bit.
+
+        git clone https://github.com/impranayk/homelab.git ~/homelab && cd ~/homelab
+        chmod +x bootstrap/*.sh
+        git update-index --chmod=+x bootstrap/*.sh     # so it never recurs
+
+4. **Tools.** k3d, kubectl, helm, k9s and the argocd CLI.
+
+        bootstrap/00-tools.sh
+
+5. **Cluster.** One server, two agents, ports 80/443 mapped to the laptop, a registry at `localhost:5111` (in-cluster `homelab-registry:5000`), Traefik disabled so ingress comes from Git. Three nodes Ready in 63 seconds.
+
+        bootstrap/01-cluster.sh
+        kubectl get nodes
+
+6. **Argo CD and the root app.** Helm installs Argo CD once; the root Application points it at this repo. Within two minutes it had installed cert-manager, the CA and ingress-nginx on its own. The app stayed Degraded, waiting for its Secret and image.
+
+        bootstrap/10-argocd.sh
+        kubectl -n argocd get applications -w
+
+7. **Secrets.** Random platform passwords are generated locally; the app's real keys go into one env file in `KEY=value` form (Streamlit Cloud shows them as TOML with quotes; the quotes must go). Files still containing `REPLACE` are skipped.
+
+        bootstrap/21-gen-secrets.sh
+        nano secrets/apps.drjhagpt-pro-env.env
+        bootstrap/20-secrets.sh
+
+8. **The first image, by hand.** Cloned the app repo inside Ubuntu (GitHub login reused from the Windows Git Credential Manager), added the Dockerfile and a `.dockerignore`, built and pushed. The waiting pod pulled it and went Running. The app reads its keys from environment variables; no `secrets.toml` needed.
+
+        git config --global credential.helper "/mnt/c/Program\ Files/Git/mingw64/bin/git-credential-manager.exe"
+        git clone https://github.com/impranayk/drjhagpt-ent.git ~/drjhagpt-ent
+        cp ~/homelab/apps/drjhagpt-pro/Dockerfile ~/drjhagpt-ent/ && cd ~/drjhagpt-ent
+        printf '.git\n.streamlit/secrets.toml\n.env\n' > .dockerignore
+        docker build --build-arg APP_FILE=streamlit_app.py -t localhost:5111/drjhagpt-pro:dev .
+        docker push localhost:5111/drjhagpt-pro:dev
+        kubectl -n apps get pods -w
+
+9. **Trust the lab CA.** Exports the CA certificate from the cluster and installs it in the Windows root store (UAC prompt). Green lock on every lab URL; login works against the same Supabase project as the live app.
+
+        bootstrap/30-trust-ca.sh
+
+10. **The one-rule test.** Added `LAB_PHASE: "1"` under `env:` in `apps/drjhagpt-pro/values.yaml`, committed, pushed. Argo CD went Synced → OutOfSync → Progressing → Healthy and the new pod carried the variable. Nothing was applied by hand.
+
+        git add -A && git commit -m "drjhagpt-pro: add LAB_PHASE env" && git push
+        kubectl -n argocd get app drjhagpt-pro -w
+        kubectl -n apps exec deploy/drjhagpt-pro -- printenv LAB_PHASE      # prints 1
 
 ### What broke and the fix
 
@@ -95,39 +119,53 @@ builds, scans and pushes the image; the running version is chosen by a tag in th
 
 ### Steps, in order
 
-1. `phases.yaml` `"2": { enabled: true }`, push, refresh root. Two Applications appeared.
-2. `gitea` went `Unknown` with a ComparisonError: *"The actions sub-chart has been outsourced to a
-   dedicated chart"*. Chart 12 also bundles Bitnami Postgres and Valkey whose old image tags are no
-   longer served. Rewrote the values: `DB_TYPE: sqlite3`, `session`/`cache` in memory, `queue` level,
-   bleve indexer, all four database sub-charts `enabled: false`, `strategy: Recreate` (one pod on one
-   PVC), `proxy-body-size: "0"` on the ingress for image pushes. Gitea came up; logged in as `homelab`
-   with the generated password.
-3. Runner: added the `gitea-runner` component (chart `actions`). Generated the registration token
-   from the running Gitea (`kubectl -n gitea exec deploy/gitea -c gitea -- gitea --config /data/gitea/conf/app.ini actions generate-runner-token`),
-   stored it as `secrets/gitea.gitea-runner-token.env`, applied with `20-secrets.sh`, set the component
-   `enabled: true`. Pod `gitea-runner-runner-0` reached `2/2`; Site Administration → Runners showed it
-   Idle with label `ubuntu-latest`.
-4. App repo into Gitea: created `homelab/drjhagpt-pro` in the UI (push-to-create is off), then
-   `git remote add gitea https://gitea.127.0.0.1.sslip.io/homelab/drjhagpt-pro.git && git push gitea main`
-   (554 MB, mostly index data and history).
-5. Repository secrets `REGISTRY_USER` / `REGISTRY_TOKEN` in Gitea; copied `build.yaml` into the app
-   repo's `.gitea/workflows/` and pushed. That push triggered the first run.
-6. Run #1 turned out to be the app repo's existing `.github/workflows/ci.yml` (pytest + retrieval
-   eval), which Gitea Actions also executes. It held the single runner for 14 minutes. Cancelled it,
-   and added a job-level `if: github.server_url == 'https://github.com'` so it is skipped on Gitea.
-7. Run #2: Gitleaks clean, build 1m48s, Trivy 1m07s with no CRITICAL findings, **push failed**:
-   `dial tcp 127.0.0.1:80: connect: connection refused`. Inside DinD, `gitea.127.0.0.1.sslip.io`
-   resolves to the DinD container itself. Changed the workflow to push to `homelab-registry:5000`
-   (resolvable from pods because k3d injects it into CoreDNS) and gave DinD
-   `--insecure-registry=homelab-registry:5000`; dropped the login step (the k3d registry has no auth).
-8. Run #4 green end to end; image `homelab-registry:5000/drjhagpt-pro:528603c`.
-9. Deploy by tag: `image.tag: 528603c` in `apps/drjhagpt-pro/values.yaml`, push. The new pod went
-   `CrashLoopBackOff`: `File does not exist: app.py`. The Dockerfile copied into the app repo before
-   the entry-file fix still defaulted to `app.py`. Because the strategy is `Recreate`, the app was down
-   until the fix. Copied the corrected Dockerfile, pushed (run #5 green), set `image.tag: c49e633`,
-   pod `1/1 Running`; `kubectl get deploy -o jsonpath=...image` confirmed the pipeline-built image.
-10. `git push gitea` once failed to authenticate: the credential manager had cached a wrong password.
-    `printf 'protocol=https\nhost=gitea.127.0.0.1.sslip.io\n' | git credential reject`, then push.
+1. **Switch phase 2 on.** One line in `phases.yaml`, push, refresh the root app. Two new Applications: `argo-cd` (self-management) and `gitea`.
+
+        sed -i 's/"2": { enabled: false }/"2": { enabled: true }/' clusters/homelab/phases.yaml
+        git add -A && git commit -m "phase 2 on" && git push
+        kubectl -n argocd annotate app root argocd.argoproj.io/refresh=normal --overwrite
+
+2. **Gitea would not render.** Argo CD reported *"The actions sub-chart has been outsourced to a dedicated chart"*: chart 12 moved the runner out, and it bundles Bitnami Postgres/Valkey images whose old tags are no longer served. Rewrote the values for a laptop: SQLite, in-memory cache and session, level queue, bleve indexer, all four database sub-charts off, `Recreate` strategy, unlimited body size on the ingress for image pushes. Gitea came up; logged in as `homelab` with the generated password.
+
+        kubectl -n argocd get app gitea -o jsonpath='{.status.conditions}'
+        grep password secrets/gitea.gitea-admin.env
+
+3. **The Actions runner.** Added the `gitea-runner` component (chart `actions` 0.1.2). It needs a registration token from the running Gitea; stored it as a secret, switched the component on. The pod reached `2/2` (runner + Docker-in-Docker) and appeared in Site Administration → Runners as Idle, label `ubuntu-latest`.
+
+        TOKEN=$(kubectl -n gitea exec deploy/gitea -c gitea -- gitea --config /data/gitea/conf/app.ini actions generate-runner-token)
+        echo "runner-token=$TOKEN" > secrets/gitea.gitea-runner-token.env && bootstrap/20-secrets.sh
+        sed -i '/name: gitea-runner/,/chart:/ s/enabled: false/enabled: true/' clusters/homelab/components.yaml
+        git add -A && git commit -m "gitea-runner on" && git push
+
+4. **The app repo into Gitea.** Created `homelab/drjhagpt-pro` in the Gitea UI first (push-to-create is off), then pushed the existing clone to it: 554 MB, mostly index data and history.
+
+        cd ~/drjhagpt-ent
+        git remote add gitea https://gitea.127.0.0.1.sslip.io/homelab/drjhagpt-pro.git
+        git push gitea main
+
+5. **The pipeline.** Two repository secrets in Gitea (`REGISTRY_USER`, `REGISTRY_TOKEN`), the workflow file copied into the app repo, pushed. That push queued the first run.
+
+        mkdir -p ~/drjhagpt-ent/.gitea/workflows && cp ~/homelab/.gitea/workflows/build.yaml ~/drjhagpt-ent/.gitea/workflows/
+        git add .gitea Dockerfile .dockerignore && git commit -m "ci: gitea actions build" && git push gitea main
+
+6. **A stranger on the runner.** Run #1 was the app repo's existing GitHub test workflow (`.github/workflows/ci.yml`, pytest and a retrieval eval); Gitea Actions runs those too. It held the single runner for 14 minutes. Cancelled it and made the job GitHub-only.
+
+        # in .github/workflows/ci.yml, at job level, above runs-on:
+        if: github.server_url == 'https://github.com'
+
+7. **Run #2: three gates passed, the push failed.** Gitleaks clean, build 1m48s, Trivy 1m07s with no CRITICAL findings, then *"dial tcp 127.0.0.1:80: connect: connection refused"*. Inside Docker-in-Docker the lab hostname resolves to the DinD container itself. Changed the workflow to push to the cluster registry (pods can resolve it because k3d puts it in CoreDNS), gave DinD `--insecure-registry=homelab-registry:5000`, dropped the login step.
+
+8. **Run #4 green end to end.** Image `homelab-registry:5000/drjhagpt-pro:528603c` in the registry.
+
+9. **Deploy by tag, and the first bad deploy.** Set `image.tag: 528603c` in the app values, pushed. The new pod crash-looped: *"File does not exist: app.py"*. The Dockerfile copied into the app repo before the entry-file fix still defaulted to `app.py`. With `Recreate`, the app was down until the next commit. Copied the corrected Dockerfile (run #5 green), set `image.tag: c49e633`, pod Running, image confirmed.
+
+        kubectl -n apps logs deploy/drjhagpt-pro --tail=5
+        sed -i 's/^  tag: 528603c$/  tag: c49e633/' apps/drjhagpt-pro/values.yaml && git add -A && git commit -m "deploy c49e633" && git push
+        kubectl -n apps get deploy drjhagpt-pro -o jsonpath='{.spec.template.spec.containers[0].image}'
+
+10. **A cached wrong password.** One `git push gitea` failed to authenticate because the Windows credential manager had stored a bad password for the Gitea host. Cleared it and pushed again.
+
+        printf 'protocol=https\nhost=gitea.127.0.0.1.sslip.io\n' | git credential reject
 
 ### What broke and the fix
 
@@ -166,34 +204,42 @@ one real problem found and fixed from a log query.
 
 ### Steps, in order
 
-1. `phases.yaml` `"3": { enabled: true }`, push, refresh root. Six Applications appeared.
-2. First look at `kubectl -n monitoring get pods`: `ntfy-alertmanager` in `Error`,
-   `opentelemetry-collector` in `CrashLoopBackOff`, `alloy` ×3 `ContainerCreating`, Prometheus,
-   Grafana, Loki, Tempo, ntfy coming up.
-3. Logs: the ntfy bridge said *"line 7: quoted string not allowed after atom"*: it reads scfg
-   (directive syntax), not YAML. Rewrote the ConfigMap (`http-address`, `ntfy { base-url, topic }`,
-   `labels { severity "critical" { priority 5 } }`) and the mount path.
-   The OTel collector said *"'exporters' unknown type: prometheus"*: the `-k8s` image is a slim build.
-   Switched to `otel/opentelemetry-collector-contrib`.
-4. `kube-prometheus-stack` sat at "waiting for completion of hook admission-create" for a couple of
-   minutes after the Job had already completed; it resolved on its own.
-5. Alloy crash-looped: *"expected TERMINATOR, got ILLEGAL"*. Its config language wants one attribute
-   per line, no `;`. Rewrote the config. The pods did not pick up the new ConfigMap until deleted
-   (`kubectl -n monitoring delete pod -l app.kubernetes.io/name=alloy`); then `2/2` on all three nodes.
-6. Grafana at https://grafana.127.0.0.1.sslip.io. Edge said "Not secure" although
-   `kubectl -n monitoring get certificate` showed `grafana-tls` Ready: the browser had kept a
-   connection open from before the certificate existed. Restarting Edge fixed it.
-7. **Explore → Loki → `{namespace="apps"}`:** 496 lines in an hour, all
-   `failed to create fsnotify watcher: too many open files`, steadily, for hours.
-   - First diagnosis: Streamlit's development file watcher. Set `STREAMLIT_SERVER_FILE_WATCHER_TYPE=none`
-     in the chart, redeployed. The histogram did not change. Wrong.
-   - Second look: the message is the **kubelet's**, emitted into the log stream that Alloy tails
-     through the API. Cause: WSL's `fs.inotify.max_user_instances=128`, exhausted by three nodes
-     plus a log shipper.
-   - Fix on the Ubuntu host: `sysctl -w fs.inotify.max_user_instances=8192 fs.inotify.max_user_watches=1048576`,
-     persisted in `/etc/sysctl.d/99-homelab.conf`, added to `bootstrap/01-cluster.sh`.
-   - `kubectl -n apps logs deploy/drjhagpt-pro --since=60s | grep -c fsnotify` → `0`; the Loki
-     histogram went flat at 03:58. The Streamlit env stays in the chart as good practice for containers.
+1. **Switch phase 3 on.** Same one-line change in `phases.yaml`. Six Applications appeared.
+
+        sed -i 's/"3": { enabled: false }/"3": { enabled: true }/' clusters/homelab/phases.yaml
+        git add -A && git commit -m "phase 3 on" && git push
+        kubectl -n argocd annotate app root argocd.argoproj.io/refresh=normal --overwrite
+
+2. **First look at the pods.** Two crashing (`ntfy-alertmanager` in Error, `opentelemetry-collector` in CrashLoopBackOff), Alloy ×3 still creating, Prometheus, Grafana, Loki, Tempo and ntfy coming up.
+
+        kubectl -n monitoring get pods
+
+3. **Read the two crash logs.** The ntfy bridge said *"line 7: quoted string not allowed after atom"*: it reads scfg directives, not YAML. Rewrote its ConfigMap and mount path. The OTel collector said *"'exporters' unknown type: prometheus"*: the `-k8s` image is a slim build without that exporter. Switched to `otel/opentelemetry-collector-contrib`. Both Running after the next sync.
+
+        kubectl -n monitoring logs deploy/ntfy-alertmanager --tail=15
+        kubectl -n monitoring logs deploy/opentelemetry-collector --tail=15
+
+4. **A hook that looked stuck.** `kube-prometheus-stack` sat at *"waiting for completion of hook admission-create"* for a couple of minutes after the Job had already completed. It resolved on its own.
+
+5. **Alloy's config syntax.** *"expected TERMINATOR, got ILLEGAL"*: the configuration language wants one attribute per line, no `;`. Rewrote it. The crash-looping pods did not pick up the new ConfigMap until deleted; then `2/2` on all three nodes.
+
+        kubectl -n monitoring logs ds/alloy -c alloy --tail=15
+        kubectl -n monitoring delete pod -l app.kubernetes.io/name=alloy
+
+6. **Grafana.** Up at https://grafana.127.0.0.1.sslip.io with the generated admin password. Edge said "Not secure" although the `grafana-tls` certificate was Ready: the browser had kept a connection open from before the certificate existed. Restarting the browser fixed it.
+
+        kubectl -n monitoring get certificate
+        grep admin-password secrets/monitoring.grafana-admin.env
+
+7. **First Loki query, first real find.** Explore → Loki → `{namespace="apps"}`: 496 lines in an hour, all *"failed to create fsnotify watcher: too many open files"*, steadily, for hours.
+
+8. **Wrong fix first.** Blamed Streamlit's development file watcher, set `STREAMLIT_SERVER_FILE_WATCHER_TYPE=none` in the chart, redeployed. The histogram did not change. Wrong hypothesis, discarded. (The env stays in the chart; it is right for a container, just not the cause.)
+
+9. **Right fix.** The line is the kubelet's, emitted into the log stream Alloy tails through the API. The WSL kernel ships `fs.inotify.max_user_instances=128`; three nodes plus a log shipper exhaust it. Raised it on the Ubuntu host, persisted it, and added it to `bootstrap/01-cluster.sh`. The histogram went flat at 03:58.
+
+        sudo sysctl -w fs.inotify.max_user_instances=8192 fs.inotify.max_user_watches=1048576
+        printf 'fs.inotify.max_user_instances=8192\nfs.inotify.max_user_watches=1048576\n' | sudo tee /etc/sysctl.d/99-homelab.conf
+        kubectl -n apps logs deploy/drjhagpt-pro --since=60s | grep -c fsnotify      # 0
 
 ### What broke and the fix
 
@@ -230,44 +276,42 @@ push.
 
 ### What happened, in order
 
-1. `phases.yaml` `"4": { enabled: true }`, push. Pods started. Within minutes the laptop stopped
-   responding. Hard reboot.
-2. After the reboot, `docker ps` showed all five containers up and `kubectl get nodes` three Ready:
-   the cluster restarts with Docker, which starts with Ubuntu. Set `"4": { enabled: false }` and
-   pushed immediately, before everything finished restarting.
-3. `kubectl top pods -A --sort-by=memory` while things restarted: Keycloak at **1188m CPU / 527 MiB**
-   (JVM start-up); Trivy operator 238 MiB and about to launch a scan job per image; and **two** Argo CD
-   application controllers: `argocd-application-controller-0` and `argo-cd-argocd-application-controller-0`.
-4. `kubectl -n argocd get sts,deploy`: a complete second Argo CD (`argo-cd-argocd-server`,
-   `-repo-server`, `-redis`, `-applicationset-controller`, `-application-controller`). Cause: the
-   self-managing `argo-cd` Application rendered with Helm release name `argo-cd` (the component
-   name) while `bootstrap/10-argocd.sh` had installed release `argocd`. The duplicate had been running
-   since phase 2 and explained the OutOfSync flapping. Deleted its StatefulSet and Deployments
-   (`-l app.kubernetes.io/instance=argo-cd`), later its Services and the one leftover ConfigMap.
-5. `kubectl` started timing out (`context deadline exceeded`) with memory fine (5 GB free, no
-   swap). `kubectl get pods -A | grep -v Running` had shown `kyverno-admission-controller` in
-   `PodInitializing`; its nine webhooks were registered, so every API write waited on a webhook that
-   could not answer. Deleting the webhooks helped only briefly: two came back within minutes because
-   Kyverno re-creates them. Scaled the Kyverno Deployments and the Keycloak StatefulSet to zero, then
-   deleted the webhooks for good.
-6. Every Application showed `Unknown`. The root app's condition, in sequence:
-   *`dial tcp 10.43.190.59:8081: connection refused`* (the deleted duplicate repo-server Service; fixed
-   by restarting the controller) → *`name resolver error: produced zero addresses`* (the shared
-   `argocd-cmd-params-cm` had `repo.server: argo-cd-argocd-repo-server:8081` and
-   `redis.server: argo-cd-argocd-redis:6379`, written by the duplicate; patched back to
-   `argocd-repo-server:8081` / `argocd-redis:6379`, restarted controller, server, applicationset
-   controller) → *`failed to get git client ... lookup argo-cd-argocd-redis`* (the repo-server had not
-   been restarted; restarted it) → *`failed to list refs ... Client.Timeout`* (the repo-server was just
-   slow after restarting; `git ls-remote` from inside the pod worked).
-7. `root` went `OutOfSync / Progressing` with no error and pruned the phase-4 Applications. Deleted
-   the empty namespaces by hand (Argo CD never deletes namespaces). `kubectl top nodes` back to
-   2.2 + 2.3 + 3.2 GB.
-8. Repository changes from the incident: `releaseName: argocd` on the `argo-cd` component (the
-   template now honours `.releaseName`); every phase-4 component individually `enabled: false`
-   except the secrets pair; Keycloak JVM `-Xmx384m` and a 640 MiB limit; Kyverno webhooks
-   `failurePolicy: Ignore`; Argo CD repo-server limit 1 GiB (it had been OOM-killed ten times during
-   the reboot storm); three PrometheusRules in `kube-prometheus-stack/extras/homelab-rules.yaml`,
-   including `DuplicateArgoCDController`.
+1. **All eight at once.** Set `"4": { enabled: true }`, pushed. Pods started. Within minutes the laptop stopped responding. Hard reboot.
+
+2. **The cluster came back by itself.** Docker starts with Ubuntu, the k3d containers restart with Docker. Switched phase 4 off in Git immediately, before everything finished restarting.
+
+        docker ps --format '{{.Names}} {{.Status}}' && kubectl get nodes && free -g
+        sed -i 's/"4": { enabled: true }/"4": { enabled: false }/' clusters/homelab/phases.yaml
+        git add -A && git commit -m "phase 4 off (memory)" && git push
+
+3. **What was eating the machine.** Keycloak at 1188m CPU and 527 MiB during JVM start-up; Trivy about to launch a scan job per image; and two Argo CD application controllers in the list, `argocd-application-controller-0` and `argo-cd-argocd-application-controller-0`. There should be one.
+
+        kubectl top nodes && kubectl top pods -A --sort-by=memory | head -15
+
+4. **A second, complete Argo CD.** Server, repo-server, redis, applicationset controller and controller, all duplicated under `argo-cd-argocd-*`. Cause: the self-managing Application rendered with Helm release name `argo-cd` (the component name) while the bootstrap had installed release `argocd`. It had been running since phase 2 and explained the OutOfSync flapping I had waved away. Deleted the duplicate workloads, then its Services and one ConfigMap.
+
+        kubectl -n argocd get sts,deploy -o name
+        kubectl -n argocd delete sts,deploy,svc -l app.kubernetes.io/instance=argo-cd
+        kubectl -n argocd delete cm argo-cd-argocd-redis-health-configmap
+
+5. **The API stopped answering.** `kubectl` timed out with memory fine (5 GB free, no swap). Kyverno's admission controller was still `PodInitializing` but its nine webhooks were registered, so every API write waited on a webhook that could not answer. Deleting the webhooks helped only briefly: Kyverno re-creates them while it runs. Scaled Kyverno and Keycloak to zero, then removed the webhooks for good.
+
+        kubectl -n kyverno scale deploy --all --replicas=0 && kubectl -n keycloak scale sts --all --replicas=0
+        kubectl delete validatingwebhookconfiguration,mutatingwebhookconfiguration -l webhook.kyverno.io/managed-by=kyverno
+
+6. **Every Application `Unknown`.** The root app's condition told the story in four acts: *"dial tcp 10.43.190.59:8081: connection refused"* (the deleted duplicate repo-server Service; restarted the controller) → *"name resolver error: produced zero addresses"* (the shared `argocd-cmd-params-cm` had been overwritten by the duplicate with `repo.server: argo-cd-argocd-repo-server:8081` and `redis.server: argo-cd-argocd-redis:6379`; patched it back, restarted controller, server and applicationset controller) → *"failed to get git client ... lookup argo-cd-argocd-redis"* (the repo-server had not been restarted; restarted it) → *"failed to list refs ... Client.Timeout"* (the repo-server was just slow after restarting; a `git ls-remote` from inside the pod worked).
+
+        kubectl -n argocd get app root -o jsonpath='{.status.conditions}'
+        kubectl -n argocd patch cm argocd-cmd-params-cm --type merge -p '{"data":{"repo.server":"argocd-repo-server:8081","redis.server":"argocd-redis:6379"}}'
+        kubectl -n argocd rollout restart sts/argocd-application-controller
+        kubectl -n argocd rollout restart deploy/argocd-server deploy/argocd-applicationset-controller deploy/argocd-repo-server
+        kubectl -n argocd annotate app root argocd.argoproj.io/refresh=hard --overwrite
+
+7. **Argo CD pruned phase 4 itself.** Root went OutOfSync/Progressing with no error and removed the eight Applications. Deleted the empty namespaces by hand (Argo CD never deletes namespaces). Memory back to 2.2 + 2.3 + 3.2 GB.
+
+        kubectl delete ns external-secrets keycloak kyverno trivy-system
+
+8. **What changed in the repo.** `releaseName: argocd` on the `argo-cd` component (the template now honours it); every phase-4 component individually `enabled: false` except the secrets pair; Keycloak JVM capped at 384 MB with a 640 MiB limit; Kyverno webhooks `failurePolicy: Ignore`; Argo CD repo-server limit 1 GiB (it had been OOM-killed ten times during the reboot storm); three PrometheusRules in `kube-prometheus-stack/extras/homelab-rules.yaml`, the first one named `DuplicateArgoCDController`.
 
 ### Second attempt, planned order
 
