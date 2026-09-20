@@ -30,7 +30,7 @@ spec:
       chart: {{ .chart.name }}
       targetRevision: {{ .chart.version | quote }}
       helm:
-        releaseName: {{ .name }}
+        releaseName: {{ .releaseName | default .name }}
         valueFiles:
           - $values/{{ .path }}/values.yaml
   {{- else }}

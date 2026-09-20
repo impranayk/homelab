@@ -38,6 +38,7 @@ components:
 
   # ---------------------------------------------------------------- phase 2 · delivery
   - name: argo-cd                   # from here on Argo CD manages its own Helm release
+    releaseName: argocd             # must match what bootstrap/10-argocd.sh installed
     phase: 2
     wave: 2
     namespace: argocd
