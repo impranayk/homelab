@@ -64,7 +64,7 @@ proven Git-only change.
         nano secrets/apps.drjhagpt-pro-env.env
         bootstrap/20-secrets.sh
 
-8. **The first image, by hand.** Cloned the app repo inside Ubuntu (GitHub login reused from the Windows Git Credential Manager), added the Dockerfile and a `.dockerignore`, built and pushed. The waiting pod pulled it and went Running. The app reads its keys from environment variables, so no `secrets.toml` was needed.
+8. **First image, built by hand.** Cloned the app repo inside Ubuntu (GitHub login reused from the Windows Git Credential Manager), added the Dockerfile and a `.dockerignore`, built and pushed. The waiting pod pulled it and went Running. The app reads its keys from environment variables, so no `secrets.toml` was needed.
 
         git config --global credential.helper "/mnt/c/Program\ Files/Git/mingw64/bin/git-credential-manager.exe"
         git clone https://github.com/impranayk/drjhagpt-ent.git ~/drjhagpt-ent
@@ -78,7 +78,7 @@ proven Git-only change.
 
         bootstrap/30-trust-ca.sh
 
-10. **The one-rule test.** Added `LAB_PHASE: "1"` under `env:` in `apps/drjhagpt-pro/values.yaml`, committed, pushed. Argo CD went Synced → OutOfSync → Progressing → Healthy and the new pod carried the variable. Nothing was applied by hand.
+10. **One-rule test.** Added `LAB_PHASE: "1"` under `env:` in `apps/drjhagpt-pro/values.yaml`, committed, pushed. Argo CD went Synced → OutOfSync → Progressing → Healthy and the new pod carried the variable. Nothing was applied by hand.
 
         git add -A && git commit -m "drjhagpt-pro: add LAB_PHASE env" && git push
         kubectl -n argocd get app drjhagpt-pro -w
@@ -130,20 +130,20 @@ builds, scans and pushes the image; the running version is chosen by a tag in th
         kubectl -n argocd get app gitea -o jsonpath='{.status.conditions}'
         grep password secrets/gitea.gitea-admin.env
 
-3. **The Actions runner.** Added the `gitea-runner` component (chart `actions` 0.1.2). It needs a registration token from the running Gitea; stored it as a secret, switched the component on. The pod reached `2/2` (runner + Docker-in-Docker) and appeared in Site Administration → Runners as Idle, label `ubuntu-latest`.
+3. **Actions runner.** Added the `gitea-runner` component (chart `actions` 0.1.2). It needs a registration token from the running Gitea; stored it as a secret, switched the component on. The pod reached `2/2` (runner + Docker-in-Docker) and appeared in Site Administration → Runners as Idle, label `ubuntu-latest`.
 
         TOKEN=$(kubectl -n gitea exec deploy/gitea -c gitea -- gitea --config /data/gitea/conf/app.ini actions generate-runner-token)
         echo "runner-token=$TOKEN" > secrets/gitea.gitea-runner-token.env && bootstrap/20-secrets.sh
         sed -i '/name: gitea-runner/,/chart:/ s/enabled: false/enabled: true/' clusters/homelab/components.yaml
         git add -A && git commit -m "gitea-runner on" && git push
 
-4. **The app repo into Gitea.** Created `homelab/drjhagpt-pro` in the Gitea UI first (push-to-create is off), then pushed the existing clone to it: 554 MB, mostly index data and history.
+4. **App repo into Gitea.** Created `homelab/drjhagpt-pro` in the Gitea UI first (push-to-create is off), then pushed the existing clone to it: 554 MB, mostly index data and history.
 
         cd ~/drjhagpt-ent
         git remote add gitea https://gitea.127.0.0.1.sslip.io/homelab/drjhagpt-pro.git
         git push gitea main
 
-5. **The pipeline.** Two repository secrets in Gitea (`REGISTRY_USER`, `REGISTRY_TOKEN`), the workflow file copied into the app repo, pushed. That push queued the first run.
+5. **Pipeline.** Two repository secrets in Gitea (`REGISTRY_USER`, `REGISTRY_TOKEN`), the workflow file copied into the app repo, pushed. That push queued the first run.
 
         mkdir -p ~/drjhagpt-ent/.gitea/workflows && cp ~/homelab/.gitea/workflows/build.yaml ~/drjhagpt-ent/.gitea/workflows/
         git add .gitea Dockerfile .dockerignore && git commit -m "ci: gitea actions build" && git push gitea main
@@ -278,7 +278,7 @@ push.
 
 1. **All eight at once.** Set `"4": { enabled: true }`, pushed. Pods started. Within minutes the laptop stopped responding. Hard reboot.
 
-2. **The cluster came back by itself.** Docker starts with Ubuntu, the k3d containers restart with Docker. Switched phase 4 off in Git immediately, before everything finished restarting.
+2. **Cluster came back by itself.** Docker starts with Ubuntu, the k3d containers restart with Docker. Switched phase 4 off in Git immediately, before everything finished restarting.
 
         docker ps --format '{{.Names}} {{.Status}}' && kubectl get nodes && free -g
         sed -i 's/"4": { enabled: true }/"4": { enabled: false }/' clusters/homelab/phases.yaml
@@ -294,7 +294,7 @@ push.
         kubectl -n argocd delete sts,deploy,svc -l app.kubernetes.io/instance=argo-cd
         kubectl -n argocd delete cm argo-cd-argocd-redis-health-configmap
 
-5. **The API stopped answering.** `kubectl` timed out with memory fine (5 GB free, no swap). Kyverno's admission controller was still `PodInitializing` but its nine webhooks were registered, so every API write waited on a webhook that could not answer. Deleting the webhooks helped only briefly: Kyverno re-creates them while it runs. Scaled Kyverno and Keycloak to zero, then removed the webhooks for good.
+5. **API stopped answering.** `kubectl` timed out with memory fine (5 GB free, no swap). Kyverno's admission controller was still `PodInitializing` but its nine webhooks were registered, so every API write waited on a webhook that could not answer. Deleting the webhooks helped only briefly: Kyverno re-creates them while it runs. Scaled Kyverno and Keycloak to zero, then removed the webhooks for good.
 
         kubectl -n kyverno scale deploy --all --replicas=0 && kubectl -n keycloak scale sts --all --replicas=0
         kubectl delete validatingwebhookconfiguration,mutatingwebhookconfiguration -l webhook.kyverno.io/managed-by=kyverno
