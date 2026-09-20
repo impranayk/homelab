@@ -4,6 +4,6 @@ phases:
   "1": { enabled: true }    # cluster plumbing + the apps            (~2.5 GB)
   "2": { enabled: true }   # Gitea, Argo CD self-managed            (+1 GB)
   "3": { enabled: true }   # Prometheus, Loki, Tempo, ntfy          (+1.5 GB)
-  "4": { enabled: true }   # Keycloak, OpenBao, Kyverno, Trivy, Falco (+1.5 GB)
+  "4": { enabled: false }   # Keycloak, OpenBao, Kyverno, Trivy, Falco (+1.5 GB)
   "5": { enabled: false }   # Postgres, MinIO, Ollama, LiteLLM, Langfuse, Open WebUI (+4 GB)
   "6": { enabled: false }   # Longhorn, Velero, Rollouts, Chaos Mesh, OpenCost, kube-bench (+1 GB)
