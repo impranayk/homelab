@@ -27,6 +27,8 @@ statefulset:
         require_docker: true
         docker_timeout: 300s
   dind:
+    extraArgs:
+      - --insecure-registry=homelab-registry:5000   # the k3d registry speaks plain HTTP
     resources:
       requests: { cpu: 100m, memory: 256Mi }
       limits: { memory: 1Gi }

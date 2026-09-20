@@ -1,5 +1,7 @@
 # Phase 2 CI for an APP repository (copy this file into drjhagpt-enterprise/.gitea/workflows/).
-# Build -> Gitleaks -> Trivy -> push to the Gitea registry. Renovate then bumps the tag in homelab.
+# Gitleaks -> build -> Trivy -> push to the cluster registry (homelab-registry:5000, the k3d one the
+# nodes already pull from). Inside the runner, gitea.127.0.0.1.sslip.io would resolve to the runner
+# itself, so the Gitea registry is not reachable from CI until Harbor arrives in phase 4.
 name: build
 on:
   push:
@@ -8,8 +10,7 @@ jobs:
   image:
     runs-on: ubuntu-latest
     env:
-      REGISTRY: gitea.127.0.0.1.sslip.io
-      IMAGE: gitea.127.0.0.1.sslip.io/homelab/drjhagpt-pro
+      IMAGE: homelab-registry:5000/drjhagpt-pro
     steps:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }
@@ -27,6 +28,6 @@ jobs:
 
       - name: Push
         run: |
-          echo "${{ secrets.REGISTRY_TOKEN }}" | docker login "$REGISTRY" -u "${{ secrets.REGISTRY_USER }}" --password-stdin
           docker push "$IMAGE:${GITHUB_SHA::7}"
           docker push "$IMAGE:latest"
+          echo "deployed tag: ${GITHUB_SHA::7}  ->  set image.tag in homelab/apps/drjhagpt-pro/values.yaml"
