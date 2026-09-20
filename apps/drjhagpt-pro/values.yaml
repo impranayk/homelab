@@ -3,7 +3,7 @@
 # Phase 5: point the app at LiteLLM instead of Groq (env below).
 image:
   repository: homelab-registry:5000/drjhagpt-pro
-  tag: 528603c
+  tag: c49e633
 host: drjhagpt.127.0.0.1.sslip.io
 envFromSecret: drjhagpt-pro-env
 env:
