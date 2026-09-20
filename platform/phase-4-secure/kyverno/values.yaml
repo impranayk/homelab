@@ -1,3 +1,8 @@
+# Webhook lockout on the first attempt: Kyverno registered its webhooks while its own pod was still
+# initialising and every API call waited on them. Ignore = the API proceeds if Kyverno cannot answer.
+config:
+  webhooks:
+    failurePolicy: Ignore
 admissionController:
   replicas: 1
   container:

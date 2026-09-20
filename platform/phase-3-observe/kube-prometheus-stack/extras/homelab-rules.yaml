@@ -1,0 +1,37 @@
+# Alert rules written after incidents. Each one is a thing that hurt once.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: homelab-rules
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: homelab.platform
+      rules:
+        - alert: DuplicateArgoCDController
+          # 2026-09-20: a self-management release-name mismatch created a second, complete Argo CD.
+          # Two controllers fought over the same Applications for a day before anyone noticed.
+          expr: count(kube_statefulset_status_replicas_ready{namespace="argocd", statefulset=~".*application-controller.*"} > 0) > 1
+          for: 5m
+          labels: { severity: critical }
+          annotations:
+            summary: "More than one Argo CD application controller is running"
+            description: "{{ $value }} application-controller StatefulSets have ready replicas in argocd. There must be exactly one."
+        - alert: AdmissionWebhookPodNotReady
+          # Same day: Kyverno's webhooks were registered while its pod was PodInitializing -> API timeouts.
+          expr: kube_deployment_status_replicas_available{namespace="kyverno", deployment="kyverno-admission-controller"} == 0
+          for: 2m
+          labels: { severity: critical }
+          annotations:
+            summary: "Kyverno admission controller has no available replica"
+            description: "Its webhooks may still be registered; with failurePolicy Fail every API write would hang."
+        - alert: NodeInotifyInstancesExhausted
+          # Phase 3: WSL's default fs.inotify.max_user_instances=128 filled every pod log with kubelet fsnotify errors.
+          expr: increase(kubelet_runtime_operations_errors_total[10m]) > 20
+          for: 10m
+          labels: { severity: warning }
+          annotations:
+            summary: "kubelet runtime errors rising on {{ $labels.node }}"
+            description: "Check the inotify limits on the WSL host (bootstrap/01-cluster.sh sets them)."

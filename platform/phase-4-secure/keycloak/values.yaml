@@ -15,7 +15,7 @@ extraEnv: |
   - name: KC_HOSTNAME
     value: https://keycloak.127.0.0.1.sslip.io
   - name: JAVA_OPTS_APPEND
-    value: -Xms256m -Xmx512m
+    value: -Xms128m -Xmx384m -XX:MaxMetaspaceSize=128m   # start-up alone hit 1.2 cores / 527Mi on the first attempt
 database:
   vendor: dev-file               # phase 5: switch to postgres on CloudNativePG
 ingress:
@@ -28,5 +28,5 @@ ingress:
       paths: [{ path: /, pathType: Prefix }]
   tls: [{ secretName: keycloak-tls, hosts: [keycloak.127.0.0.1.sslip.io] }]
 resources:
-  requests: { cpu: 100m, memory: 512Mi }
-  limits: { memory: 768Mi }
+  requests: { cpu: 100m, memory: 384Mi }
+  limits: { memory: 640Mi }

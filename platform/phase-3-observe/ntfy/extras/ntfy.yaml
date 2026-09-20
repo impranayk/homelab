@@ -56,6 +56,10 @@ data:
     http-address :8080
     log-level info
     ntfy {
+        # In-cluster ntfy works from the laptop only. For the phone, point at the public server
+        # with an unguessable topic (treat the topic like a password), e.g.:
+        #   base-url https://ntfy.sh
+        #   topic homelab-<random>
         base-url http://ntfy.monitoring.svc
         topic homelab
     }

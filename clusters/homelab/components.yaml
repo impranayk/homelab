@@ -66,6 +66,7 @@ components:
     wave: 5
     namespace: monitoring
     path: platform/phase-3-observe/kube-prometheus-stack
+    extras: true                    # the lab's own alert rules
     chart: { repoURL: https://prometheus-community.github.io/helm-charts, name: kube-prometheus-stack, version: "91.4.1" }
 
   - name: loki
@@ -104,6 +105,8 @@ components:
     extras: true
 
   # ---------------------------------------------------------------- phase 4 · secure
+  # First attempt (2026-09-20) switched all eight on at once and hung the laptop. Order now:
+  # external-secrets + openbao -> keycloak -> kyverno (+extras, policies) -> trivy-operator -> falco last.
   - name: external-secrets
     phase: 4
     wave: 7
@@ -120,6 +123,7 @@ components:
 
   - name: keycloak
     phase: 4
+    enabled: false                  # phase 4 goes on ONE component at a time (see README)
     wave: 8
     namespace: keycloak
     path: platform/phase-4-secure/keycloak
@@ -127,6 +131,7 @@ components:
 
   - name: kyverno
     phase: 4
+    enabled: false                  # phase 4 goes on ONE component at a time (see README)
     wave: 8
     namespace: kyverno
     path: platform/phase-4-secure/kyverno
@@ -135,6 +140,7 @@ components:
 
   - name: kyverno-policies          # pod-security baseline, audit mode
     phase: 4
+    enabled: false                  # phase 4 goes on ONE component at a time (see README)
     wave: 9
     namespace: kyverno
     path: platform/phase-4-secure/kyverno-policies
@@ -142,6 +148,7 @@ components:
 
   - name: trivy-operator
     phase: 4
+    enabled: false                  # phase 4 goes on ONE component at a time (see README)
     wave: 9
     namespace: trivy-system
     path: platform/phase-4-secure/trivy-operator
@@ -149,6 +156,7 @@ components:
 
   - name: falco
     phase: 4
+    enabled: false                  # phase 4 goes on ONE component at a time (see README)
     wave: 9
     namespace: falco
     path: platform/phase-4-secure/falco
