@@ -53,7 +53,7 @@ proven Git-only change.
         bootstrap/01-cluster.sh
         kubectl get nodes
 
-6. **Argo CD and the root app.** Helm installs Argo CD once; the root Application points it at this repo. Within two minutes it had installed cert-manager, the CA and ingress-nginx on its own. The app stayed Degraded, waiting for its Secret and image.
+6. **Argo CD and the root app.** Helm installs Argo CD once; the root Application points it at this repo. Within two minutes it had installed cert-manager, the CA and ingress-nginx on its own. Only the app stayed Degraded, waiting for its Secret and image.
 
         bootstrap/10-argocd.sh
         kubectl -n argocd get applications -w
@@ -64,7 +64,7 @@ proven Git-only change.
         nano secrets/apps.drjhagpt-pro-env.env
         bootstrap/20-secrets.sh
 
-8. **First image, built by hand.** Cloned the app repo inside Ubuntu (GitHub login reused from the Windows Git Credential Manager), added the Dockerfile and a `.dockerignore`, built and pushed. The waiting pod pulled it and went Running. The app reads its keys from environment variables, so no `secrets.toml` was needed.
+8. **First image, built by hand.** Cloned the app repo inside Ubuntu (GitHub login reused from the Windows Git Credential Manager), added the Dockerfile and a `.dockerignore`, built and pushed. Its waiting pod pulled it and went Running. Streamlit reads its keys from environment variables here, so no `secrets.toml` was needed.
 
         git config --global credential.helper "/mnt/c/Program\ Files/Git/mingw64/bin/git-credential-manager.exe"
         git clone https://github.com/impranayk/drjhagpt-ent.git ~/drjhagpt-ent
@@ -130,7 +130,7 @@ builds, scans and pushes the image; the running version is chosen by a tag in th
         kubectl -n argocd get app gitea -o jsonpath='{.status.conditions}'
         grep password secrets/gitea.gitea-admin.env
 
-3. **Actions runner.** Added the `gitea-runner` component (chart `actions` 0.1.2). It needs a registration token from the running Gitea; stored it as a secret, switched the component on. The pod reached `2/2` (runner + Docker-in-Docker) and appeared in Site Administration → Runners as Idle, label `ubuntu-latest`.
+3. **Actions runner.** Added the `gitea-runner` component (chart `actions` 0.1.2). It needs a registration token from the running Gitea; stored it as a secret, switched the component on. Its pod reached `2/2` (runner + Docker-in-Docker) and appeared in Site Administration → Runners as Idle, label `ubuntu-latest`.
 
         TOKEN=$(kubectl -n gitea exec deploy/gitea -c gitea -- gitea --config /data/gitea/conf/app.ini actions generate-runner-token)
         echo "runner-token=$TOKEN" > secrets/gitea.gitea-runner-token.env && bootstrap/20-secrets.sh
@@ -157,7 +157,7 @@ builds, scans and pushes the image; the running version is chosen by a tag in th
 
 8. **Run #4 green end to end.** Image `homelab-registry:5000/drjhagpt-pro:528603c` in the registry.
 
-9. **Deploy by tag, and the first bad deploy.** Set `image.tag: 528603c` in the app values, pushed. The new pod crash-looped: *"File does not exist: app.py"*. The Dockerfile copied into the app repo before the entry-file fix still defaulted to `app.py`. With `Recreate`, the app was down until the next commit. Copied the corrected Dockerfile (run #5 green), set `image.tag: c49e633`, pod Running, image confirmed.
+9. **Deploy by tag, and the first bad deploy.** Set `image.tag: 528603c` in the app values, pushed. Its new pod crash-looped: *"File does not exist: app.py"*. My Dockerfile copy in the app repo, made before the entry-file fix, still defaulted to `app.py`. With `Recreate`, the app was down until the next commit. Copied the corrected Dockerfile (run #5 green), set `image.tag: c49e633`, pod Running, image confirmed.
 
         kubectl -n apps logs deploy/drjhagpt-pro --tail=5
         sed -i 's/^  tag: 528603c$/  tag: c49e633/' apps/drjhagpt-pro/values.yaml && git add -A && git commit -m "deploy c49e633" && git push
@@ -182,7 +182,7 @@ builds, scans and pushes the image; the running version is chosen by a tag in th
 ### Measured
 
 `kubectl top nodes` after phases 1+2: 1555 + 850 + 3852 MiB ≈ **4.7 GB** across the three nodes.
-The Docker-in-Docker sidecar in the runner is the unexpected item.
+Docker-in-Docker in the runner is the unexpected item.
 
 ---
 
@@ -214,14 +214,14 @@ one real problem found and fixed from a log query.
 
         kubectl -n monitoring get pods
 
-3. **Read the two crash logs.** The ntfy bridge said *"line 7: quoted string not allowed after atom"*: it reads scfg directives, not YAML. Rewrote its ConfigMap and mount path. The OTel collector said *"'exporters' unknown type: prometheus"*: the `-k8s` image is a slim build without that exporter. Switched to `otel/opentelemetry-collector-contrib`. Both Running after the next sync.
+3. **Read the two crash logs.** ntfy's bridge said *"line 7: quoted string not allowed after atom"*: it reads scfg directives, not YAML. Rewrote its ConfigMap and mount path. OTel's collector said *"'exporters' unknown type: prometheus"*: the `-k8s` image is a slim build without that exporter. Switched to `otel/opentelemetry-collector-contrib`. Both Running after the next sync.
 
         kubectl -n monitoring logs deploy/ntfy-alertmanager --tail=15
         kubectl -n monitoring logs deploy/opentelemetry-collector --tail=15
 
 4. **A hook that looked stuck.** `kube-prometheus-stack` sat at *"waiting for completion of hook admission-create"* for a couple of minutes after the Job had already completed. It resolved on its own.
 
-5. **Alloy's config syntax.** *"expected TERMINATOR, got ILLEGAL"*: the configuration language wants one attribute per line, no `;`. Rewrote it. The crash-looping pods did not pick up the new ConfigMap until deleted; then `2/2` on all three nodes.
+5. **Alloy's config syntax.** *"expected TERMINATOR, got ILLEGAL"*: the configuration language wants one attribute per line, no `;`. Rewrote it. Crash-looping pods do not pick up a new ConfigMap until deleted; after that, `2/2` on all three nodes.
 
         kubectl -n monitoring logs ds/alloy -c alloy --tail=15
         kubectl -n monitoring delete pod -l app.kubernetes.io/name=alloy
@@ -233,9 +233,9 @@ one real problem found and fixed from a log query.
 
 7. **First Loki query, first real find.** Explore → Loki → `{namespace="apps"}`: 496 lines in an hour, all *"failed to create fsnotify watcher: too many open files"*, steadily, for hours.
 
-8. **Wrong fix first.** Blamed Streamlit's development file watcher, set `STREAMLIT_SERVER_FILE_WATCHER_TYPE=none` in the chart, redeployed. The histogram did not change. Wrong hypothesis, discarded. (The env stays in the chart; it is right for a container, just not the cause.)
+8. **Wrong fix first.** Blamed Streamlit's development file watcher, set `STREAMLIT_SERVER_FILE_WATCHER_TYPE=none` in the chart, redeployed. Nothing changed on the histogram. Wrong hypothesis, discarded. (The env stays in the chart; it is right for a container, just not the cause.)
 
-9. **Right fix.** The line is the kubelet's, emitted into the log stream Alloy tails through the API. The WSL kernel ships `fs.inotify.max_user_instances=128`; three nodes plus a log shipper exhaust it. Raised it on the Ubuntu host, persisted it, and added it to `bootstrap/01-cluster.sh`. The histogram went flat at 03:58.
+9. **Right fix.** That line is the kubelet's, emitted into the log stream Alloy tails through the API. WSL's kernel ships `fs.inotify.max_user_instances=128`; three nodes plus a log shipper exhaust it. Raised it on the Ubuntu host, persisted it, and added it to `bootstrap/01-cluster.sh`. At 03:58 the histogram went flat.
 
         sudo sysctl -w fs.inotify.max_user_instances=8192 fs.inotify.max_user_watches=1048576
         printf 'fs.inotify.max_user_instances=8192\nfs.inotify.max_user_watches=1048576\n' | sudo tee /etc/sysctl.d/99-homelab.conf
@@ -299,7 +299,7 @@ push.
         kubectl -n kyverno scale deploy --all --replicas=0 && kubectl -n keycloak scale sts --all --replicas=0
         kubectl delete validatingwebhookconfiguration,mutatingwebhookconfiguration -l webhook.kyverno.io/managed-by=kyverno
 
-6. **Every Application `Unknown`.** The root app's condition told the story in four acts: *"dial tcp 10.43.190.59:8081: connection refused"* (the deleted duplicate repo-server Service; restarted the controller) → *"name resolver error: produced zero addresses"* (the shared `argocd-cmd-params-cm` had been overwritten by the duplicate with `repo.server: argo-cd-argocd-repo-server:8081` and `redis.server: argo-cd-argocd-redis:6379`; patched it back, restarted controller, server and applicationset controller) → *"failed to get git client ... lookup argo-cd-argocd-redis"* (the repo-server had not been restarted; restarted it) → *"failed to list refs ... Client.Timeout"* (the repo-server was just slow after restarting; a `git ls-remote` from inside the pod worked).
+6. **Every Application `Unknown`.** Root's condition told the story in four acts: *"dial tcp 10.43.190.59:8081: connection refused"* (the deleted duplicate repo-server Service; restarted the controller) → *"name resolver error: produced zero addresses"* (the shared `argocd-cmd-params-cm` had been overwritten by the duplicate with `repo.server: argo-cd-argocd-repo-server:8081` and `redis.server: argo-cd-argocd-redis:6379`; patched it back, restarted controller, server and applicationset controller) → *"failed to get git client ... lookup argo-cd-argocd-redis"* (the repo-server had not been restarted; restarted it) → *"failed to list refs ... Client.Timeout"* (the repo-server was just slow after restarting; a `git ls-remote` from inside the pod worked).
 
         kubectl -n argocd get app root -o jsonpath='{.status.conditions}'
         kubectl -n argocd patch cm argocd-cmd-params-cm --type merge -p '{"data":{"repo.server":"argocd-repo-server:8081","redis.server":"argocd-redis:6379"}}'
