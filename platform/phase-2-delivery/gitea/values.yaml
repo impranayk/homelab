@@ -1,10 +1,15 @@
-# Gitea: git hosting + Actions runner + container registry, in one small container.
-# First login: admin user below, change the password on first sign-in.
+# Gitea: git hosting + container registry (+ Actions runner via the separate gitea-runner component).
+# Laptop mode: one replica, SQLite + in-memory cache. No Bitnami Postgres/Valkey (their old image
+# tags are no longer served). Phase 5 exercise: move it onto the CloudNativePG cluster.
+replicaCount: 1
+strategy:
+  type: Recreate                 # SQLite on one PVC: never two pods at once
 ingress:
   enabled: true
   className: nginx
   annotations:
     cert-manager.io/cluster-issuer: homelab-ca
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"   # image pushes to the registry
   hosts:
     - host: gitea.127.0.0.1.sslip.io
       paths: [{ path: /, pathType: Prefix }]
@@ -13,31 +18,35 @@ ingress:
       hosts: [gitea.127.0.0.1.sslip.io]
 gitea:
   admin:
-    existingSecret: gitea-admin      # keys: username, password  (bootstrap/20-secrets.sh)
+    existingSecret: gitea-admin  # keys: username, password  (bootstrap/20-secrets.sh)
     email: homelab@example.invalid
   config:
     server:
       ROOT_URL: https://gitea.127.0.0.1.sslip.io/
+    database:
+      DB_TYPE: sqlite3
+    session:
+      PROVIDER: memory
+    cache:
+      ADAPTER: memory
+    queue:
+      TYPE: level
+    indexer:
+      ISSUE_INDEXER_TYPE: bleve
+      REPO_INDEXER_ENABLED: false
     packages:
-      ENABLED: true                # this is the container registry
+      ENABLED: true              # this is the container registry
     actions:
       ENABLED: true
     service:
       DISABLE_REGISTRATION: true
-# laptop mode: no HA, built-in sqlite-free single Postgres, no valkey cluster
 postgresql-ha: { enabled: false }
-postgresql:
-  enabled: true
-  primary:
-    resources: { requests: { cpu: 50m, memory: 128Mi } }
+postgresql: { enabled: false }
 valkey-cluster: { enabled: false }
-valkey: { enabled: true }
-actions:
-  enabled: true
-  provisioning:
-    enabled: true                  # creates the runner registration token
+valkey: { enabled: false }
 resources:
   requests: { cpu: 100m, memory: 256Mi }
   limits: { memory: 768Mi }
 persistence:
+  enabled: true
   size: 10Gi
