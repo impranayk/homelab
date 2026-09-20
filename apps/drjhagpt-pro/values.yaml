@@ -8,6 +8,7 @@ host: drjhagpt.127.0.0.1.sslip.io
 envFromSecret: drjhagpt-pro-env
 env:
   APP_ENV: homelab
+  LAB_PHASE: "1"
   # OPENAI_BASE_URL: http://litellm.ai.svc:4000/v1     # phase 5
 resources:
   requests: { cpu: 100m, memory: 384Mi }
