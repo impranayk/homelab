@@ -2,7 +2,7 @@
 # off when you are done studying it. Argo CD prunes what you switch off.
 phases:
   "1": { enabled: true }    # cluster plumbing + the apps            (~2.5 GB)
-  "2": { enabled: false }   # Gitea, Argo CD self-managed            (+1 GB)
+  "2": { enabled: true }   # Gitea, Argo CD self-managed            (+1 GB)
   "3": { enabled: false }   # Prometheus, Loki, Tempo, ntfy          (+1.5 GB)
   "4": { enabled: false }   # Keycloak, OpenBao, Kyverno, Trivy, Falco (+1.5 GB)
   "5": { enabled: false }   # Postgres, MinIO, Ollama, LiteLLM, Langfuse, Open WebUI (+4 GB)
