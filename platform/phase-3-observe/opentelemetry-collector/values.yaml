@@ -1,7 +1,7 @@
 # One collector Deployment: apps send OTLP here, it fans out to Tempo (traces) and Prometheus (metrics).
 mode: deployment
 image:
-  repository: otel/opentelemetry-collector-k8s
+  repository: otel/opentelemetry-collector-contrib   # the -k8s build has no prometheus exporter
 replicaCount: 1
 resources:
   requests: { cpu: 20m, memory: 64Mi }

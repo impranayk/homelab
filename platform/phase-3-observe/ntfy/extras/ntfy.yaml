@@ -51,17 +51,25 @@ metadata:
   name: ntfy-alertmanager
   namespace: monitoring
 data:
-  config.yaml: |
-    http:
-      addr: ":8080"
-    ntfy:
-      baseurl: http://ntfy.monitoring.svc
-      topic: homelab
-    labels:
-      order: ["severity"]
-      severity:
-        critical: { priority: 5, tags: ["rotating_light"] }
-        warning:  { priority: 4, tags: ["warning"] }
+  # ntfy-alertmanager reads scfg (directive) syntax, not YAML
+  config: |
+    http-address :8080
+    log-level info
+    ntfy {
+        base-url http://ntfy.monitoring.svc
+        topic homelab
+    }
+    labels {
+        order "severity"
+        severity "critical" {
+            priority 5
+            tags "rotating_light"
+        }
+        severity "warning" {
+            priority 4
+            tags "warning"
+        }
+    }
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -77,7 +85,7 @@ spec:
       containers:
         - name: bridge
           image: xenrox/ntfy-alertmanager:0.5.0
-          args: [--config, /etc/ntfy-alertmanager/config.yaml]
+          args: [--config, /etc/ntfy-alertmanager/config]
           ports: [{ containerPort: 8080 }]
           volumeMounts: [{ name: cfg, mountPath: /etc/ntfy-alertmanager }]
           resources: { requests: { cpu: 5m, memory: 16Mi }, limits: { memory: 64Mi } }
